@@ -1,0 +1,7 @@
+# home_path: D:\Work\Automation\gtest
+browser: chrome
+app_url: https://google.com
+db_server: dell-staging.database.windows.net
+db_name: dell-voc-dev
+db_UID: gramener
+db_PWD: kV$4uGC!B
