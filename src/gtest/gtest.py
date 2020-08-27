@@ -90,6 +90,18 @@ class Actions:
             print('Exception occured while wait: ', e)
             return "fail"
 
+    def text(self, _element, test_data):
+        try:
+            temp_text = _element.text
+            if(temp_text == test_data):
+                return "pass"
+            else:
+                return "fail"
+        except Exception as e:
+            logging.error(e)
+            print("Exception in text")
+            return "fail"
+
 
 class Start_Execution(Actions):
 
@@ -159,6 +171,8 @@ class Start_Execution(Actions):
                 action_result = self.click(test_element)
             elif action == "wait":
                 action_result = self.wait(test_data)
+            elif action == "text":
+                action_result = self.text(test_element, test_data)
             return action_result
         except Exception as e:
             print("error occured in execute_test_step: ", e)
