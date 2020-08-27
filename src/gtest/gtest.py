@@ -50,6 +50,7 @@ class Actions:
             else:
                 pass
                 # TODO
+            driver.delete_all_cookies()
             logging.info("Browser launched : ")
         except Exception as e:
             logging.error(e)
