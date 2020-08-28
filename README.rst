@@ -1,15 +1,15 @@
 =====
-gtest
+GramenerTest
 =====
 
 
-Add a short description here!
+A hybrid automation framework based on selenium webdriver written in python
 
 
 Description
 ===========
 
-A longer description of your project goes here...
+A hybrid automation framework based on selenium webdriver written in python
 
 
 Note
