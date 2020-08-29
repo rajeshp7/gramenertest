@@ -8,7 +8,6 @@ from selenium.webdriver.support import expected_conditions as expCond
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.common.exceptions import ElementNotVisibleException, ElementNotSelectableException, ElementClickInterceptedException
-# import chromedriver_binary
 from time import sleep
 
 
@@ -41,13 +40,16 @@ class Actions:
         Returns:
             object: driver
         """
+        dir_path = dirname(dirname(os.getcwd()))
+        chromedriver_path = dir_path+r'\\drivers\\chromedriver.exe'
+        geckodriver_path = dir_path+r'\drivers\geckodriver.exe'
         try:
             if browser.lower() == 'chrome':
                 driver = webdriver.Chrome(
-                    executable_path="D:\\Work\\Automation\\gtest\\gtest\\drivers\\chromedriver.exe")
+                    executable_path=chromedriver_path)
             elif browser.lower() == 'firefox':
                 driver = webdriver.Firefox(
-                    executable_path="D:\\Work\\Automation\\gtest\\gtest\\drivers\\geckodriver.exe")
+                    executable_path=geckodriver_path)
                 # TODO
             elif browser.lower() == 'ie':
                 pass
