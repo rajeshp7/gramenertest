@@ -1,14 +1,17 @@
+from datetime import datetime
+from time import sleep
 import yaml
 import os
+import time
 from os.path import dirname
 import logging
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as expCond
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-from selenium.common.exceptions import ElementNotVisibleException, ElementNotSelectableException, ElementClickInterceptedException
-from time import sleep
+from selenium.common.exceptions import ElementNotVisibleException
+from selenium.common.exceptions import ElementNotSelectableException
+from selenium.common.exceptions import ElementClickInterceptedException
 
 
 # log configuration
@@ -197,6 +200,17 @@ class Start_Execution(Actions):
         steps = actions['steps']
         return name, steps
 
+    # Wrtie test_script result
+    def write_test_script_result(self, filename, test_scripts_result):
+        """Wite test results to Yaml file
+
+        Args:
+            filename (str): path to create file and file name
+            test_scripts_result (obj): test scripts results object
+        """
+        with open(filename, 'w') as result:
+            yaml.dump(test_scripts_result, result)
+
     # get Test Element
     def get_test_element(self, driver, test_element):
         """Function to get the test element property
@@ -210,8 +224,11 @@ class Start_Execution(Actions):
         """
         try:
             test_element = test_element.strip('\"')
-            driver_wait = WebDriverWait(driver, 60, poll_frequency=1, ignored_exceptions=[
-                                        ElementNotVisibleException, ElementNotSelectableException, ElementClickInterceptedException])
+            driver_wait = WebDriverWait(driver, 60, poll_frequency=1,
+                                        ignored_exceptions=[
+                                            ElementNotVisibleException,
+                                            ElementNotSelectableException,
+                                            ElementClickInterceptedException])
             if test_element.startswith('#'):
                 test_element = test_element.lstrip('#')
                 element = driver_wait.until(
@@ -279,6 +296,9 @@ class Start_Execution(Actions):
                 action_result = self.text(test_element, test_data)
             elif action == "close":
                 action_result = self.close(driver)
+            else:
+                print("Action does not exsit, please check")
+                action_result = "fail"
             return action_result
         except Exception as e:
             print("error occured in execute_test_step: ", e)
@@ -298,17 +318,23 @@ class Start_Execution(Actions):
         test_scripts = self.collect_test_scripts(
             self._paths['test_scripts_path'])
 
+        # Test Script results
+        test_scripts_result = []
+
         # Read each Test Script
         for test_script in test_scripts:
+            startTime = time.time()
             test_script_path = self._paths['test_scripts_path']+'/'+test_script
             test_script_name, test_steps = self. read_test_script(
                 test_script_path)
             driver = self.launch_browser(self.browser)
             # Test Script results
-            test_script_result = {"Test Script": test_script_name}
+            test_script_result = {
+                "Test Script": test_script_name, "test_steps_result": []}
             # Loop through steps
             test_steps_result = []
             for test_step in test_steps:
+                step_startTime = time.time()
                 res_flag = 0
                 split_step = test_step.split(" ")
                 action = split_step[0]
@@ -320,19 +346,28 @@ class Start_Execution(Actions):
                 test_data = split_step[2]
                 test_step_result = self.execute_test_step(
                     driver, action, _element, test_data)
+                step_endTime = time.time()
                 if(test_step_result.lower() == "fail"):
                     res_flag = 1
                 temp_result = {
                     "Test Step": test_step,
-                    "Test Step Result": test_step_result, "duration": "0s"}
+                    "Test Step Result": test_step_result,
+                    "duration(sec)": step_endTime - step_startTime}
                 test_steps_result.append(temp_result)
-
+            test_script_result['test_steps_result'] = test_steps_result
             if res_flag == 1:
-                test_script_result['Result'] = "Fail"
+                test_script_result['result'] = "Fail"
             else:
-                test_script_result['Result'] = 'Pass'
-            print(test_steps_result)
-            print(test_script_result)
+                test_script_result['result'] = 'Pass'
+            test_scripts_result.append(test_script_result)
+            endTime = time.time()
+            test_script_result['duration(sec)'] = endTime - startTime
+        # test results file name
+        res_filename = r'\results_'+str(datetime.now())+'.yaml'
+        res_filename = res_filename.replace(":", "-")
+        test_results_path = self._paths['test_results_path'] + res_filename
+        # write test results to yaml file
+        self.write_test_script_result(test_results_path, test_scripts_result)
 
 
 if __name__ == "__main__":
@@ -351,6 +386,12 @@ if __name__ == "__main__":
     # folder paths
     test_scripts_path = home_path+r'\test scripts'
     test_results_path = home_path+r'\test results'
+
+    # create test scripts results directory
+    try:
+        os.makedirs(test_results_path)
+    except OSError:
+        print("results directory exists")
 
     folder_paths = {'test_scripts_path': test_scripts_path,
                     'test_results_path': test_results_path}

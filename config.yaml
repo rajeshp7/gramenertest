@@ -1,6 +1,6 @@
 # home_path: D:\Work\Automation\gtest
-browser: firefox
-# browser: chrome
+# browser: firfox
+browser: chrome
 # app_url: https://google.com
 db_server: dell-staging.database.windows.net
 db_name: dell-voc-dev
