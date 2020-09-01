@@ -85,7 +85,7 @@ class Actions:
             print('Exception occured while input: ', e)
             return "fail"
 
-    def click(self, _element):
+    def click(self, driver, _element):
         """Function to click on an element
 
         Args:
@@ -228,6 +228,9 @@ class Start_Execution(Actions):
                                             ElementNotVisibleException,
                                             ElementNotSelectableException,
                                             ElementClickInterceptedException])
+            driver_wait.until(
+                expCond.invisibility_of_element_located(
+                    (By.CLASS_NAME, "loading")))
             if test_element.startswith('#'):
                 test_element = test_element.lstrip('#')
                 element = driver_wait.until(
@@ -288,7 +291,7 @@ class Start_Execution(Actions):
             elif action == "input":
                 action_result = self.input_value(test_element, test_data)
             elif action == "click":
-                action_result = self.click(test_element)
+                action_result = self.click(driver, test_element)
             elif action == "wait":
                 action_result = self.wait(test_data)
             elif action == "text":
@@ -338,6 +341,9 @@ class Start_Execution(Actions):
                 split_step = test_step.split(" ")
                 action = split_step[0]
                 test_element = split_step[1]
+                # if action == 'click':
+                #     _element = self.wait_for_element_clickable(
+                #         driver, test_element)
                 if test_element != 'NA':
                     _element = self.get_test_element(driver, test_element)
                 else:
@@ -398,7 +404,3 @@ if __name__ == "__main__":
     # Initiate Execution
     execution = Start_Execution(folder_paths, browser)
     execution.start_execution()
-
-    # yaml_contents = yaml.load(
-    #     open("D:\\Work\\Automation\\gramenertest\\test scripts\\test1.yaml"), Loader=yaml.FullLoader)
-    # print(yaml_contents['steps'][0].split(','))
