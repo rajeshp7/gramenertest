@@ -95,7 +95,6 @@ class Actions:
             str: result of click action
         """
         try:
-            # sleep(10)
             _element.click()
             return "pass"
         except Exception as e:
@@ -224,7 +223,7 @@ class Start_Execution(Actions):
         """
         try:
             test_element = test_element.strip('\"')
-            driver_wait = WebDriverWait(driver, 60, poll_frequency=1,
+            driver_wait = WebDriverWait(driver, 100, poll_frequency=1,
                                         ignored_exceptions=[
                                             ElementNotVisibleException,
                                             ElementNotSelectableException,
@@ -235,7 +234,7 @@ class Start_Execution(Actions):
                     expCond.presence_of_element_located((By.ID, test_element)))
             elif test_element.startswith(('//', '/')):
                 element = driver_wait.until(
-                    expCond.element_to_be_clickable(
+                    expCond.presence_of_element_located(
                         (By.XPATH, test_element)))
             elif test_element.startswith('.'):
                 test_element = test_element.lstrip('.')
@@ -245,7 +244,7 @@ class Start_Execution(Actions):
             else:
                 element = driver_wait.until(
                     expCond.presence_of_element_located
-                    ((By.CSS_SELECTOR, test_element)))
+                    ((By.LINK_TEXT, test_element)))
             return element
         except Exception as e:
             print("Exception occurred in get_test_element: ", test_element, e)
@@ -333,9 +332,9 @@ class Start_Execution(Actions):
                 "Test Script": test_script_name, "test_steps_result": []}
             # Loop through steps
             test_steps_result = []
+            res_flag = 0
             for test_step in test_steps:
                 step_startTime = time.time()
-                res_flag = 0
                 split_step = test_step.split(" ")
                 action = split_step[0]
                 test_element = split_step[1]
@@ -399,3 +398,7 @@ if __name__ == "__main__":
     # Initiate Execution
     execution = Start_Execution(folder_paths, browser)
     execution.start_execution()
+
+    # yaml_contents = yaml.load(
+    #     open("D:\\Work\\Automation\\gramenertest\\test scripts\\test1.yaml"), Loader=yaml.FullLoader)
+    # print(yaml_contents['steps'][0].split(','))
