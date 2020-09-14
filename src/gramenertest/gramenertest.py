@@ -170,6 +170,18 @@ class Start_Execution(Actions):
         self.browser = browser
 
     # Collect Test Scripts
+    def read_yaml(self, file_path):
+        """Function to read yaml file
+
+        Args:
+            file_path (str): path to the yaml file
+
+        Returns:
+            obj: contents of the yaml file
+        """
+        content = yaml.load(open(file_path),
+                            Loader=yaml.FullLoader)
+        return content
 
     def collect_test_scripts(self, test_scripts_fpath):
         """Function to collect all the test scripts in a folder
@@ -210,7 +222,53 @@ class Start_Execution(Actions):
         with open(filename, 'w') as result:
             yaml.dump(test_scripts_result, result)
 
-    # get Test Element
+    # Get Test Object property
+    def get_object_property(self, obj_name):
+        """Function to get the object property from the object repo
+
+        Args:
+            obj_name (str): object name with combination of screen name and control name. eg: Login-username
+
+        Returns:
+            str: object property
+        """
+        temp_obj = obj_name.split('-')
+        page_name = temp_obj[0]
+        control_name = temp_obj[1]
+        obj_repo_filePath = self._paths['test_objects_path']
+        test_objects = self.read_yaml(obj_repo_filePath)
+        obj_prop = ''
+        for test_object in test_objects:
+            if test_object.lower() == page_name.lower():
+                obj_controls = test_objects[test_object]
+                for obj_control in obj_controls:
+                    try:
+                        if (obj_control[control_name]):
+                            obj_prop = obj_control[control_name]
+                            return obj_prop
+                    except Exception:
+                        pass
+        return obj_prop
+
+    # Get Test Data
+    def get_test_data(self, dataVar, _data):
+        """Function to get get_test_data
+
+        Args:
+            dataVar (list): list of test data
+            _data (str) : variable of test data
+
+        Returns:
+            str: variable value
+        """
+        if _data in dataVar:
+            test_data = dataVar.get(_data)
+            return test_data
+        else:
+            print("Test data is not available")
+
+        # Get Test Element
+
     def get_test_element(self, driver, test_element):
         """Function to get the test element property
 
@@ -222,7 +280,7 @@ class Start_Execution(Actions):
             str: element
         """
         try:
-            test_element = test_element.strip('\"')
+            test_element = test_element.strip('\'')
             driver_wait = WebDriverWait(driver, 100, poll_frequency=1,
                                         ignored_exceptions=[
                                             ElementNotVisibleException,
@@ -306,73 +364,158 @@ class Start_Execution(Actions):
             print("error occured in execute_test_step: ", e)
             return "fail"
 
+    # Script Execution
+    def scripts_execution(self):
+        """Function to execute all the scripts available in test scripts folder.
+            It is based on the execution mode.
+        """
+        try:
+            # collect Test Scripts
+            test_scripts = self.collect_test_scripts(
+                self._paths['test_scripts_path'])
+            test_scripts_result = []
+            for test_script in test_scripts:
+                startTime = time.time()
+                # Test Script results
+                test_script_result = self.start_execution(test_script)
+                endTime = time.time()
+                test_script_result['duration(sec)'] = endTime - startTime
+                test_scripts_result.append(test_script_result)
+            # test results file name
+            res_filename = r'\results_'+str(datetime.now())+'.yaml'
+            res_filename = res_filename.replace(":", "-")
+            test_results_path = self._paths['test_results_path'] + res_filename
+            # write test results to yaml file
+            self.write_test_script_result(
+                test_results_path, test_scripts_result)
+        except Exception as e:
+            logging.error(e)
+            print("Exception occured in Scripts execution ", e)
     # Start Execution
 
-    def start_execution(self):
-        """ To start test scripts execution
+    def start_execution(self, _script):
+        """Function to strat test script execution
 
-        Args: No args
+        Args:
+            _script_path (str): test script file path
 
         Returns:
-            No Returns
+            obj: test script execution result
         """
-        # collect Test Scripts
-        test_scripts = self.collect_test_scripts(
-            self._paths['test_scripts_path'])
-
-        # Test Script results
-        test_scripts_result = []
-
-        # Read each Test Script
-        for test_script in test_scripts:
-            startTime = time.time()
-            test_script_path = self._paths['test_scripts_path']+'/'+test_script
+        try:
+            test_script_filepath = self._paths['test_scripts_path'] + \
+                '/' + _script
+            test_data_filepath = self._paths['test_data_path'] + \
+                '/' + _script
             test_script_name, test_steps = self. read_test_script(
-                test_script_path)
-            driver = self.launch_browser(self.browser)
-            # Test Script results
+                test_script_filepath)
+            test_data_dump = self.read_yaml(test_data_filepath)
             test_script_result = {
-                "Test Script": test_script_name, "test_steps_result": []}
-            # Loop through steps
-            test_steps_result = []
-            res_flag = 0
-            for test_step in test_steps:
-                step_startTime = time.time()
-                split_step = test_step.split(" ")
-                action = split_step[0]
-                test_element = split_step[1]
-                # if action == 'click':
-                #     _element = self.wait_for_element_clickable(
-                #         driver, test_element)
-                if test_element != 'NA':
-                    _element = self.get_test_element(driver, test_element)
+                "Test Script": test_script_name, "Test_Steps_Result": []}
+            for testdata in test_data_dump:
+                driver = self.launch_browser(self.browser)
+                # Loop through steps
+                test_steps_result = []
+                res_flag = 0
+                for test_step in test_steps:
+                    step_startTime = time.time()
+                    split_step = test_step.split(" ")
+                    action = split_step[0]
+                    if split_step[1] != 'NA':
+                        test_element = self.get_object_property(
+                            split_step[1])
+                        _element = self.get_test_element(driver, test_element)
+                    else:
+                        _element = 'NA'
+                    if split_step[2] != 'NA':
+                        test_data = self.get_test_data(
+                            testdata, split_step[2])
+                    else:
+                        test_data = 'NA'
+                    test_step_result = self.execute_test_step(
+                        driver, action, _element, test_data)
+                    step_endTime = time.time()
+                    if(test_step_result.lower() == "fail"):
+                        res_flag = 1
+                    temp_result = {
+                        "Test Step": test_step,
+                        "Test Step Result": test_step_result,
+                        "duration(sec)": step_endTime - step_startTime}
+                    test_steps_result.append(temp_result)
+                test_script_result['Test_Steps_Result'].append(
+                    test_steps_result)
+                if res_flag == 1:
+                    test_script_result['result'] = "Fail"
                 else:
-                    _element = 'NA'
-                test_data = split_step[2]
-                test_step_result = self.execute_test_step(
-                    driver, action, _element, test_data)
-                step_endTime = time.time()
-                if(test_step_result.lower() == "fail"):
-                    res_flag = 1
-                temp_result = {
-                    "Test Step": test_step,
-                    "Test Step Result": test_step_result,
-                    "duration(sec)": step_endTime - step_startTime}
-                test_steps_result.append(temp_result)
-            test_script_result['test_steps_result'] = test_steps_result
-            if res_flag == 1:
-                test_script_result['result'] = "Fail"
-            else:
-                test_script_result['result'] = 'Pass'
-            test_scripts_result.append(test_script_result)
-            endTime = time.time()
-            test_script_result['duration(sec)'] = endTime - startTime
-        # test results file name
-        res_filename = r'\results_'+str(datetime.now())+'.yaml'
-        res_filename = res_filename.replace(":", "-")
-        test_results_path = self._paths['test_results_path'] + res_filename
-        # write test results to yaml file
-        self.write_test_script_result(test_results_path, test_scripts_result)
+                    test_script_result['result'] = 'Pass'
+            return test_script_result
+        except Exception as e:
+            logging.error(e)
+            print("Exception occurred in start execution ", e)
+        finally:
+            driver.quit()
+
+    def suite_execution(self):
+        """Function to execute a test suite, based on the execution mode
+        """
+        try:
+            test_suites = self.read_yaml(self._paths['test_suite_path'])
+            test_suites_result = []
+            suite_res_flag = 0
+            for suite in test_suites:
+                test_suite_result = {
+                    "Suite": suite['Suite Name'], "Result": '', "Duration(sec)": '', "Test Scripts Result": []}
+                suite_start_time = time.time()
+                execute_status = suite['Execute']
+                if execute_status.lower() == 'yes':
+                    test_scripts = suite['Test Scripts']
+                    test_scripts_result = []
+                    for script in test_scripts:
+                        script_name = script['Name']
+                        script_execution_status = script['Execute']
+                        if script_execution_status.lower() == 'yes':
+                            startTime = time.time()
+                            # test_script = self._paths['test_scripts_path'] + \
+                            #     r'\\'+script_name+'.yaml'
+                            test_script = script_name+'.yaml'
+                            test_script_result = self.start_execution(
+                                test_script)
+                            endTime = time.time()
+                            test_script_result['duration(sec)'] = endTime - \
+                                startTime
+                            test_scripts_result.append(test_script_result)
+                            if(test_script_result['result'].lower() == "Fail"):
+                                suite_res_flag = 1
+
+                        else:
+                            script['result'] = "Skip"
+                            script['duration(sec)'] = 0
+                            test_scripts_result.append(script)
+                    suite_end_time = time.time()
+                    if(suite_res_flag == 1):
+                        test_suite_result['result'] = 'Pass'
+                    else:
+                        test_suite_result['result'] = 'Fail'
+                    test_suite_result['duration(sec)'] = suite_end_time - \
+                        suite_start_time
+                    test_suite_result['Test Scripts Result'].append(
+                        test_scripts_result)
+                    test_suites_result.append(test_suite_result)
+
+                else:
+                    test_suite_result['result'] = "Skip"
+                    test_suite_result['duration(sec)'] = 0
+                    test_suites_result.append(test_suite_result)
+                    # test results file name
+            res_filename = r'\suite_results_'+str(datetime.now())+'.yaml'
+            res_filename = res_filename.replace(":", "-")
+            test_results_path = self._paths['test_results_path'] + res_filename
+            # write test results to yaml file
+            self.write_test_script_result(
+                test_results_path, test_suites_result)
+        except Exception as e:
+            logging.error(e)
+            print("Exception occured in test suite execution ", e)
 
 
 if __name__ == "__main__":
@@ -388,9 +531,14 @@ if __name__ == "__main__":
     # Browsers
     browser = exec_params['browser']
 
+    execution_mode = exec_params['execution_mode']
+
     # folder paths
     test_scripts_path = home_path+r'\test scripts'
     test_results_path = home_path+r'\test results'
+    test_objects_path = home_path+r'\test objects'
+    test_data_path = home_path+r'\test data'
+    test_suite_path = home_path+r'\test suite'
 
     # create test scripts results directory
     try:
@@ -399,8 +547,18 @@ if __name__ == "__main__":
         print("results directory exists")
 
     folder_paths = {'test_scripts_path': test_scripts_path,
-                    'test_results_path': test_results_path}
+                    'test_results_path': test_results_path,
+                    'test_objects_path': test_objects_path+r'\test_objects.yaml',
+                    'test_suite_path': test_suite_path+r'\test_suite.yaml',
+                    'test_data_path': test_data_path}
 
     # Initiate Execution
     execution = Start_Execution(folder_paths, browser)
-    execution.start_execution()
+    try:
+        if execution_mode == 1:
+            execution.scripts_execution()
+        else:
+            execution.suite_execution()
+    except Exception as e:
+        logging.error(e)
+        print("Exception occurred in main execution ", e)
