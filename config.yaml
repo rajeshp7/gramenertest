@@ -1,6 +1,9 @@
 execution_mode: 1
 browser: chrome
-db_server: dell-staging.database.windows.net
-db_name: dell-voc-dev
-db_UID: gramener
-db_PWD: kV$4uGC!B
+
+db_details:
+  database: mssql
+  db_server: dell-staging.database.windows.net
+  db_name: dell-voc-dev
+  db_user: gramener
+  db_password: kV$4uGC!B

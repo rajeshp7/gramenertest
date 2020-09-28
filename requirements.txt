@@ -16,4 +16,5 @@
 # scipy==1.0
 PyYAML==5.3.1
 selenium==3.141.0
-
+mysql-connector-python==8.0.21
+pyodbc==4.0.30

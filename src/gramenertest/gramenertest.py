@@ -5,6 +5,9 @@ import os
 import time
 from os.path import dirname
 import logging
+import pyodbc
+import mysql.connector
+from mysql.connector import Error
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as expCond
@@ -25,6 +28,52 @@ def read_yaml(config_file_path):
     yaml_contents = yaml.load(
         open(config_file_path), Loader=yaml.FullLoader)
     return yaml_contents
+
+
+class Database:
+    def __init__(self):
+        pass
+
+    def mysql_db_connection(self, db_credentials):
+        db_connector = mysql.connector.connect(
+            host=db_credentials['host'], database=db_credentials['db_name'], user=db_credentials['user'], password=db_credentials['password'])
+        return db_connector
+
+    def mssql_db_connection(self, db_credentials):
+        db_connector = pyodbc.connect("DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={0}; database={1}; UID={2};PWD={3}".format(
+            db_credentials['server'], db_credentials['db_name'], db_credentials['db_user'], db_credentials['db_password']))
+        return db_connector
+
+    def connect_to_database(self, db_credentials):
+        db_name = db_credentials['database']
+        if(db_name == 'mysql'):
+            db_connection = self.mysql_db_connection(db_credentials)
+        elif(db_name == 'mssql'):
+            db_connection = self.mssql_db_connection(db_credentials)
+        else:
+            print("database is not correct")
+        return db_connection
+
+    def execute_select_query(self, db_credentials, query):
+        global auto_dictionary
+        temp_query = query.split('|')
+        res_var = temp_query[0]
+        query = temp_query[1]
+        try:
+            db_connection = self.connect_to_database(db_credentials)
+            db_cursor = db_connection.cursor()
+            db_cursor.execute(query)
+            row = db_cursor.fetchone()
+            temp_row = str(row).split(',')
+            if '(' in temp_row[0]:
+                row = temp_row[0].replace('(', '')
+            auto_dictionary[res_var] = row
+            result = "pass"
+        except Exception as e:
+            row = 'null'
+            result = "fail"
+            print("Exception occurred while executing a query ", e)
+        return result
 
 
 class Actions:
@@ -131,13 +180,16 @@ class Actions:
         """
         try:
             temp_text = _element.text
+            print(temp_text)
             if(temp_text == test_data):
                 return "pass"
             else:
+                print("comparision failed, expected %s and actual %s" %
+                      (test_data, temp_text))
                 return "fail"
         except Exception as e:
             logging.error(e)
-            print("Exception in text")
+            print("Exception in text", e)
             return "fail"
 
     def close(self, driver):
@@ -157,6 +209,41 @@ class Actions:
             print("Exception whil closeing the browser: ", e)
             return "fail"
 
+    def execute_expression(self, expression):
+        try:
+            global auto_dictionary
+            temp_exp = expression.split('|')
+            store_var = temp_exp[0]
+            exp_type = temp_exp[1]
+            if exp_type.lower() != 'per':
+                temp_params = temp_exp[2].split(',')
+                param1 = int(auto_dictionary[temp_params[0]])
+                param2 = int(auto_dictionary[temp_params[1]])
+            if exp_type.lower().startswith('add'):
+                auto_dictionary[store_var] = param1 + param2
+                result = "pass"
+            elif exp_type.lower().startswith('sub'):
+                auto_dictionary[store_var] = param1 - param2
+                result = "pass"
+            elif exp_type.lower().startswith('mul'):
+                auto_dictionary[store_var] = param1 * param2
+                result = "pass"
+            elif exp_type.lower().startswith('div'):
+                auto_dictionary[store_var] = param1 / param2
+                result = "pass"
+            elif exp_type.lower().startswith('per'):
+                auto_dictionary[store_var] = auto_dictionary[temp_exp[2]] * 100
+                result = "pass"
+
+            else:
+                print('expression not correct')
+                result = "fail"
+        except Exception as e:
+            print('Exception occured while executing expression', e)
+            result = "fail"
+
+        return result
+
 
 class Start_Execution(Actions):
     """Class to start test script execution
@@ -165,11 +252,16 @@ class Start_Execution(Actions):
         Actions (class): Actions class
     """
 
-    def __init__(self, _paths, browser):
+    def __init__(self, _paths, browser, db_credentials):
         self._paths = _paths
         self.browser = browser
+        self.db_credentials = db_credentials
+
+    # Connect to database
+    database = Database()
 
     # Collect Test Scripts
+
     def read_yaml(self, file_path):
         """Function to read yaml file
 
@@ -261,12 +353,14 @@ class Start_Execution(Actions):
         Returns:
             str: variable value
         """
+        global auto_dictionary
         if _data in dataVar:
             test_data = dataVar.get(_data)
-            return test_data
+            if test_data.startswith('~'):
+                test_data = auto_dictionary[test_data.strip('~')]
         else:
             print("Test data is not available")
-
+        return test_data
         # Get Test Element
 
     def get_test_element(self, driver, test_element):
@@ -356,6 +450,11 @@ class Start_Execution(Actions):
                 action_result = self.text(test_element, test_data)
             elif action == "close":
                 action_result = self.close(driver)
+            elif action == "executeselectquery":
+                action_result = self.database.execute_select_query(self.db_credentials,
+                                                                   test_data)
+            elif action == "executeexpression":
+                action_result = self.execute_expression(test_data)
             else:
                 print("Action does not exsit, please check")
                 action_result = "fail"
@@ -520,6 +619,8 @@ class Start_Execution(Actions):
 
 if __name__ == "__main__":
 
+    auto_dictionary = {}
+
     dir_path = dirname(dirname(os.getcwd()))
 
     # config_file_path
@@ -552,13 +653,20 @@ if __name__ == "__main__":
                     'test_suite_path': test_suite_path+r'\test_suite.yaml',
                     'test_data_path': test_data_path}
 
+    # db Connection:
+    db_details = exec_params['db_details']
+    db_credentials = {'database': db_details['database'], 'server': db_details['db_server'], 'db_name': db_details['db_name'],
+                      'db_user': db_details['db_user'], 'db_password': db_details['db_password']}
+
     # Initiate Execution
-    execution = Start_Execution(folder_paths, browser)
+    execution = Start_Execution(folder_paths, browser, db_credentials)
     try:
         if execution_mode == 1:
             execution.scripts_execution()
-        else:
+        elif execution_mode == 2:
             execution.suite_execution()
+        else:
+            print("Input Valid Execution mode")
     except Exception as e:
         logging.error(e)
         print("Exception occurred in main execution ", e)
