@@ -6,8 +6,6 @@ import time
 from os.path import dirname
 import logging
 import pyodbc
-import mysql.connector
-from mysql.connector import Error
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as expCond
@@ -35,25 +33,26 @@ class Database:
     def __init__(self):
         pass
 
-    def mysql_db_connection(self, db_credentials):
-        db_connector = mysql.connector.connect(
-            host=db_credentials['host'], database=db_credentials['db_name'], user=db_credentials['user'], password=db_credentials['password'])
-        return db_connector
-
-    def mssql_db_connection(self, db_credentials):
-        db_connector = pyodbc.connect("DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={0}; database={1}; UID={2};PWD={3}".format(
-            db_credentials['server'], db_credentials['db_name'], db_credentials['db_user'], db_credentials['db_password']))
-        return db_connector
-
     def connect_to_database(self, db_credentials):
         db_name = db_credentials['database']
         if(db_name == 'mysql'):
-            db_connection = self.mysql_db_connection(db_credentials)
+            # db_connection = self.mysql_db_connection(db_credentials)
+            # TO DO
+            pass
         elif(db_name == 'mssql'):
             db_connection = self.mssql_db_connection(db_credentials)
         else:
             print("database is not correct")
         return db_connection
+
+    def mssql_db_connection(self, db_credentials):
+        db_connector = pyodbc.connect
+        ("DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={0};database={1};UID={2};PWD={3}".
+         format(db_credentials['server'],
+                db_credentials['db_name'],
+                db_credentials['db_user'],
+                db_credentials['db_password']))
+        return db_connector
 
     def execute_select_query(self, db_credentials, query):
         global auto_dictionary
@@ -250,7 +249,8 @@ class Actions:
 
         Args:
             driver (Object): Webdriver object
-            _element (web element): element on which select action must be performed
+            _element (web element):
+            element on which select action must be performed
             test_data (str): option details
 
         Returns:
@@ -375,7 +375,8 @@ class Start_Execution(Actions):
         """Function to get the object property from the object repo
 
         Args:
-            obj_name (str): object name with combination of screen name and control name. eg: Login-username
+            obj_name (str): object name with combination of screen name
+            and control name. eg: Login-username
 
         Returns:
             str: object property
@@ -429,6 +430,7 @@ class Start_Execution(Actions):
         Returns:
             str: element
         """
+        global loader
         try:
             test_element = test_element.strip('\'')
             driver_wait = WebDriverWait(driver, 100, poll_frequency=1,
@@ -438,7 +440,7 @@ class Start_Execution(Actions):
                                             ElementClickInterceptedException])
             driver_wait.until(
                 expCond.invisibility_of_element_located(
-                    (By.CLASS_NAME, "loading")))
+                    (By.CLASS_NAME, loader)))
             if test_element.startswith('#'):
                 test_element = test_element.lstrip('#')
                 element = driver_wait.until(
@@ -507,8 +509,8 @@ class Start_Execution(Actions):
             elif action == "close":
                 action_result = self.close(driver)
             elif action == "executeselectquery":
-                action_result = self.database.execute_select_query(self.db_credentials,
-                                                                   test_data)
+                action_result = self.database.execute_select_query
+                (self.db_credentials, test_data)
             elif action == "executeexpression":
                 action_result = self.execute_expression(test_data)
             elif action == "select":
@@ -525,7 +527,8 @@ class Start_Execution(Actions):
 
     # Script Execution
     def scripts_execution(self):
-        """Function to execute all the scripts available in test scripts folder.
+        """Function to execute all the scripts
+        available in test scripts folder.
             It is based on the execution mode.
         """
         try:
@@ -623,7 +626,8 @@ class Start_Execution(Actions):
             suite_res_flag = 0
             for suite in test_suites:
                 test_suite_result = {
-                    "Suite": suite['Suite Name'], "Result": '', "Duration(sec)": '', "Test Scripts Result": []}
+                    "Suite": suite['Suite Name'], "Result": '',
+                    "Duration(sec)": '', "Test Scripts Result": []}
                 suite_start_time = time.time()
                 execute_status = suite['Execute']
                 if execute_status.lower() == 'yes':
@@ -634,8 +638,6 @@ class Start_Execution(Actions):
                         script_execution_status = script['Execute']
                         if script_execution_status.lower() == 'yes':
                             startTime = time.time()
-                            # test_script = self._paths['test_scripts_path'] + \
-                            #     r'\\'+script_name+'.yaml'
                             test_script = script_name+'.yaml'
                             test_script_result = self.start_execution(
                                 test_script)
@@ -692,14 +694,18 @@ if __name__ == "__main__":
     # Browsers
     browser = exec_params['browser']
 
+    # loader class
+    loader = exec_params['loader_classname']
+
+    # Execution mode
     execution_mode = exec_params['execution_mode']
 
     # folder paths
-    test_scripts_path = home_path+r'\test scripts'
-    test_results_path = home_path+r'\test results'
-    test_objects_path = home_path+r'\test objects'
-    test_data_path = home_path+r'\test data'
-    test_suite_path = home_path+r'\test suite'
+    test_scripts_path = home_path+r'\artifacts\test scripts'
+    test_results_path = home_path+r'\artifacts\test results'
+    test_objects_path = home_path+r'\artifacts\test objects'
+    test_data_path = home_path+r'\artifacts\test data'
+    test_suite_path = home_path+r'\artifacts\test suite'
 
     # create test scripts results directory
     try:
@@ -709,14 +715,18 @@ if __name__ == "__main__":
 
     folder_paths = {'test_scripts_path': test_scripts_path,
                     'test_results_path': test_results_path,
-                    'test_objects_path': test_objects_path+r'\test_objects.yaml',
+                    'test_objects_path': test_objects_path +
+                    r'\test_objects.yaml',
                     'test_suite_path': test_suite_path+r'\test_suite.yaml',
                     'test_data_path': test_data_path}
 
     # db Connection:
     db_details = exec_params['db_details']
-    db_credentials = {'database': db_details['database'], 'server': db_details['db_server'], 'db_name': db_details['db_name'],
-                      'db_user': db_details['db_user'], 'db_password': db_details['db_password']}
+    db_credentials = {'database': db_details['database'],
+                      'server': db_details['db_server'],
+                      'db_name': db_details['db_name'],
+                      'db_user': db_details['db_user'],
+                      'db_password': db_details['db_password']}
 
     # Initiate Execution
     execution = Start_Execution(folder_paths, browser, db_credentials)

@@ -1,6 +1,6 @@
 execution_mode: 1
 browser: chrome
-
+loader_classname: loading
 db_details:
   database: mssql
   db_server: dell-staging.database.windows.net
