@@ -273,6 +273,33 @@ class Actions:
             result = "fail"
         return result
 
+    def dropdown_options(self, _element, test_data):
+        """Validate the options available in the dropdown
+
+        Args:
+            _element (Web element): drop down element
+            test_data (list): list of the options to be validated
+
+        Returns:
+            str : result of the action
+        """
+        result = "pass"
+        try:
+            # print(test_data)
+            select = Select(_element)
+            options = select.options
+            options_text = []
+            for i in range(0, len(options)):
+                options_text.append(options[i].text)
+            for j in range(0, len(test_data)):
+                if not test_data[j] in options_text:
+                    print(" option does not exist ", test_data[j])
+                    result = "fail"
+        except Exception as e:
+            print("Exception occurred in dropdown_options ", e)
+            result = "fail"
+        return result
+
 
 class Start_Execution(Actions):
     """Class to start test script execution
@@ -486,6 +513,8 @@ class Start_Execution(Actions):
                 action_result = self.execute_expression(test_data)
             elif action == "select":
                 action_result = self.select_option(test_element, test_data)
+            elif action == "dropdown_options":
+                action_result = self.dropdown_options(test_element, test_data)
             else:
                 print("Action does not exsit, please check")
                 action_result = "fail"
