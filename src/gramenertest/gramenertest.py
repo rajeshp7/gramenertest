@@ -12,6 +12,7 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as expCond
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import ElementNotVisibleException
 from selenium.common.exceptions import ElementNotSelectableException
 from selenium.common.exceptions import ElementClickInterceptedException
@@ -244,6 +245,34 @@ class Actions:
 
         return result
 
+    def select_option(self, _element, test_data):
+        """Select an option from dropdown
+
+        Args:
+            driver (Object): Webdriver object
+            _element (web element): element on which select action must be performed
+            test_data (str): option details
+
+        Returns:
+            str: result of the action
+        """
+        try:
+            select = Select(_element)
+            temp_var = test_data.split('|')
+            select_type = temp_var[0]
+            select_value = temp_var[1]
+            if select_type == 'index':
+                select.select_by_index(select_value)
+            elif select_type == 'text':
+                select.select_by_visible_text(select_value)
+            elif select_type == 'value':
+                select.select_by_value(select_value)
+            result = "pass"
+        except Exception as e:
+            print("Exception occurred in select ", e)
+            result = "fail"
+        return result
+
 
 class Start_Execution(Actions):
     """Class to start test script execution
@@ -356,7 +385,7 @@ class Start_Execution(Actions):
         global auto_dictionary
         if _data in dataVar:
             test_data = dataVar.get(_data)
-            if test_data.startswith('~'):
+            if str(test_data).startswith('~'):
                 test_data = auto_dictionary[test_data.strip('~')]
         else:
             print("Test data is not available")
@@ -455,6 +484,8 @@ class Start_Execution(Actions):
                                                                    test_data)
             elif action == "executeexpression":
                 action_result = self.execute_expression(test_data)
+            elif action == "select":
+                action_result = self.select_option(test_element, test_data)
             else:
                 print("Action does not exsit, please check")
                 action_result = "fail"
