@@ -701,11 +701,11 @@ if __name__ == "__main__":
     execution_mode = exec_params['execution_mode']
 
     # folder paths
-    test_scripts_path = home_path+r'\artifacts\test scripts'
-    test_results_path = home_path+r'\artifacts\test results'
-    test_objects_path = home_path+r'\artifacts\test objects'
-    test_data_path = home_path+r'\artifacts\test data'
-    test_suite_path = home_path+r'\artifacts\test suite'
+    test_scripts_path = home_path+r'\artefacts\test scripts'
+    test_results_path = home_path+r'\artefacts\test results'
+    test_objects_path = home_path+r'\artefacts\test objects'
+    test_data_path = home_path+r'\artefacts\test data'
+    test_suite_path = home_path+r'\artefacts\test suite'
 
     # create test scripts results directory
     try:
