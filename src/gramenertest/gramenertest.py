@@ -3,9 +3,12 @@ from time import sleep
 import yaml
 import os
 import time
+import json
 from os.path import dirname
+from json2html import json2html
 import logging
 import pyodbc
+from threading import Thread
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as expCond
@@ -46,15 +49,23 @@ class Database:
         return db_connection
 
     def mssql_db_connection(self, db_credentials):
-        db_connector = pyodbc.connect
-        ("DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={0};database={1};UID={2};PWD={3}".
-         format(db_credentials['server'],
-                db_credentials['db_name'],
-                db_credentials['db_user'],
-                db_credentials['db_password']))
+        db_connector = pyodbc.connect("DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={0};database={1};UID={2};PWD={3}".format(
+            db_credentials['server'], db_credentials['db_name'], db_credentials['db_user'], db_credentials['db_password']))
         return db_connector
 
     def execute_select_query(self, db_credentials, query):
+        """Execute a select query, store the value in a dictionary 
+        and return the result
+
+        Args:
+            db_credentials (dic): database server and credentials
+            query (str): select query to execute
+
+        Returns:
+            str: execution result
+            str: execution result description
+        """
+        result = ""
         global auto_dictionary
         temp_query = query.split('|')
         res_var = temp_query[0]
@@ -69,11 +80,14 @@ class Database:
                 row = temp_row[0].replace('(', '')
             auto_dictionary[res_var] = row
             result = "pass"
+            result_description = "Select query successful"
         except Exception as e:
             row = 'null'
             result = "fail"
+            result_description = "Select query failed due to an exception " + \
+                str(e)
             print("Exception occurred while executing a query ", e)
-        return result
+        return result, result_description
 
 
 class Actions:
@@ -129,10 +143,14 @@ class Actions:
         try:
             _element.clear()
             _element.send_keys(test_data)
-            return "pass"
+            result = "pass"
+            result_description = "Input action successful"
         except Exception as e:
             print('Exception occured while input: ', e)
-            return "fail"
+            result = "fail"
+            result_description = "Input action failed due to an exception " + \
+                str(e)
+        return result, result_description
 
     def click(self, driver, _element):
         """Function to click on an element
@@ -145,11 +163,15 @@ class Actions:
         """
         try:
             _element.click()
-            return "pass"
+            result = "pass"
+            result_description = "Click action successful"
         except Exception as e:
             logging.error(e)
             print('Exception occured while click: ', e)
-            return "fail"
+            result = "fail"
+            result_description = "Click action failed due to an exception " + \
+                str(e)
+        return result, result_description
 
     def wait(self, test_data):
         """Function to wait for a period of time
@@ -162,11 +184,15 @@ class Actions:
         """
         try:
             sleep(int(test_data))
-            return "pass"
+            result = "pass"
+            result_description = "wait action successful"
         except Exception as e:
             logging.error(e)
             print('Exception occured while wait: ', e)
-            return "fail"
+            result = "fail"
+            result_description = "Wait action failed due to an exception " + \
+                str(e)
+        return result, result_description
 
     def text(self, _element, test_data):
         """Function to verify the text of an element
@@ -180,17 +206,22 @@ class Actions:
         """
         try:
             temp_text = _element.text
-            print(temp_text)
             if(temp_text == test_data):
-                return "pass"
+                result = "pass"
+                result_description = "text verification successful"
             else:
                 print("comparision failed, expected %s and actual %s" %
                       (test_data, temp_text))
-                return "fail"
+                result = "fail"
+                result_description = "text verification failed," + \
+                    test_data+"expected but"+temp_text+"is actual"
         except Exception as e:
             logging.error(e)
             print("Exception in text", e)
-            return "fail"
+            result = "fail"
+            result_description = "text verification failed due to exception" + \
+                str(e)
+        return result, result_description
 
     def close(self, driver):
         """Function to close the browser
@@ -203,11 +234,15 @@ class Actions:
         """
         try:
             driver.quit()
-            return "pass"
+            result = "pass"
+            result_description = "Close browser successful"
         except Exception as e:
             logging.error(e)
-            print("Exception whil closeing the browser: ", e)
-            return "fail"
+            print("Exception while closing the browser: ", e)
+            result = "fail"
+            result_description = "Close browser failed due to an exception " + \
+                str(e)
+        return result, result_description
 
     def execute_expression(self, expression):
         try:
@@ -215,6 +250,7 @@ class Actions:
             temp_exp = expression.split('|')
             store_var = temp_exp[0]
             exp_type = temp_exp[1]
+            result_description = "Expression excuted successfully"
             if exp_type.lower() != 'per':
                 temp_params = temp_exp[2].split(',')
                 param1 = int(auto_dictionary[temp_params[0]])
@@ -234,15 +270,17 @@ class Actions:
             elif exp_type.lower().startswith('per'):
                 auto_dictionary[store_var] = auto_dictionary[temp_exp[2]] * 100
                 result = "pass"
-
             else:
                 print('expression not correct')
                 result = "fail"
+                result_description = "Provided expression is not valid"
         except Exception as e:
             print('Exception occured while executing expression', e)
             result = "fail"
+            result_description = "Execute expression failed due to an exception " + \
+                str(e)
 
-        return result
+        return result, result_description
 
     def select_option(self, _element, test_data):
         """Select an option from dropdown
@@ -268,10 +306,13 @@ class Actions:
             elif select_type == 'value':
                 select.select_by_value(select_value)
             result = "pass"
+            result_description = "Select action successful"
         except Exception as e:
             print("Exception occurred in select ", e)
             result = "fail"
-        return result
+            result_description = "Select action failed due to an exception " + \
+                str(e)
+        return result, result_description
 
     def dropdown_options(self, _element, test_data):
         """Validate the options available in the dropdown
@@ -292,13 +333,18 @@ class Actions:
             for i in range(0, len(options)):
                 options_text.append(options[i].text)
             for j in range(0, len(test_data)):
+                result_description = "dropdown options validation successful"
                 if not test_data[j] in options_text:
                     print(" option does not exist ", test_data[j])
                     result = "fail"
+                    result_description = "option does not exist " + \
+                        test_data[j]
         except Exception as e:
             print("Exception occurred in dropdown_options ", e)
             result = "fail"
-        return result
+            result_description = "dropdown options validation failed due to an exception" + \
+                str(e)
+        return result, result_description
 
 
 class Start_Execution(Actions):
@@ -359,6 +405,11 @@ class Start_Execution(Actions):
         steps = actions['steps']
         return name, steps
 
+    # Method to convert timedelta to string
+    def timeConverter(self, totalTime):
+        if isinstance(totalTime, datetime.timedelta):
+            return totalTime.total_seconds()
+
     # Wrtie test_script result
     def write_test_script_result(self, filename, test_scripts_result):
         """Wite test results to Yaml file
@@ -367,10 +418,17 @@ class Start_Execution(Actions):
             filename (str): path to create file and file name
             test_scripts_result (obj): test scripts results object
         """
-        with open(filename, 'w') as result:
+        res_json = json.loads(json.dumps(
+            test_scripts_result, default=self.timeConverter))
+        format_to_table = json2html.convert(json=res_json)
+        with open(filename+'.yaml', 'w') as result:
             yaml.dump(test_scripts_result, result)
+        with open(filename+'.html', 'w') as htmlresult:
+            htmlresult.write(format_to_table)
+            htmlresult.close()
 
     # Get Test Object property
+
     def get_object_property(self, obj_name):
         """Function to get the object property from the object repo
 
@@ -438,9 +496,10 @@ class Start_Execution(Actions):
                                             ElementNotVisibleException,
                                             ElementNotSelectableException,
                                             ElementClickInterceptedException])
-            driver_wait.until(
-                expCond.invisibility_of_element_located(
-                    (By.CLASS_NAME, loader)))
+            if loader != 'NA':
+                driver_wait.until(
+                    expCond.invisibility_of_element_located(
+                        (By.CLASS_NAME, loader)))
             if test_element.startswith('#'):
                 test_element = test_element.lstrip('#')
                 element = driver_wait.until(
@@ -475,10 +534,13 @@ class Start_Execution(Actions):
         try:
             driver.maximize_window()
             driver.get(app_url)
-            return "pass"
+            result = "pass"
+            result_description = "Application launched successfully"
         except Exception as e:
             print("Exception occurred while opening application: ", e)
-            return "fail"
+            result = "fail"
+            result_description = "Launch application failed due to " + str(e)
+        return result, result_description
 
     # Execute test step
     def execute_test_step(self, driver, action, test_element, test_data):
@@ -495,35 +557,42 @@ class Start_Execution(Actions):
         """
         try:
             action_result = ""
+            res_desc = ""
             action = action.lower()
             if action == "launch":
-                action_result = self.open_application(driver, test_data)
+                action_result, res_desc = self.open_application(
+                    driver, test_data)
             elif action == "input":
-                action_result = self.input_value(test_element, test_data)
+                action_result, res_desc = self.input_value(
+                    test_element, test_data)
             elif action == "click":
-                action_result = self.click(driver, test_element)
+                action_result, res_desc = self.click(driver, test_element)
             elif action == "wait":
-                action_result = self.wait(test_data)
+                action_result, res_desc = self.wait(test_data)
             elif action == "text":
-                action_result = self.text(test_element, test_data)
+                action_result, res_desc = self.text(test_element, test_data)
             elif action == "close":
-                action_result = self.close(driver)
+                action_result, res_desc = self.close(driver)
             elif action == "executeselectquery":
-                action_result = self.database.execute_select_query
-                (self.db_credentials, test_data)
+                action_result, res_desc = self.database.execute_select_query(
+                    self.db_credentials, test_data)
             elif action == "executeexpression":
-                action_result = self.execute_expression(test_data)
+                action_result, res_desc = self.execute_expression(test_data)
             elif action == "select":
-                action_result = self.select_option(test_element, test_data)
+                action_result, res_desc = self.select_option(
+                    test_element, test_data)
             elif action == "dropdown_options":
-                action_result = self.dropdown_options(test_element, test_data)
+                action_result, res_desc = self.dropdown_options(
+                    test_element, test_data)
             else:
                 print("Action does not exsit, please check")
                 action_result = "fail"
-            return action_result
+                res_desc = "Action does not exsit"
         except Exception as e:
             print("error occured in execute_test_step: ", e)
-            return "fail"
+            action_result = "fail"
+            res_desc = "error occured in execute_test_step: "+str(e)
+        return action_result, res_desc
 
     # Script Execution
     def scripts_execution(self):
@@ -544,7 +613,8 @@ class Start_Execution(Actions):
                 test_script_result['duration(sec)'] = endTime - startTime
                 test_scripts_result.append(test_script_result)
             # test results file name
-            res_filename = r'\results_'+str(datetime.now())+'.yaml'
+            res_filename = r'\results_' + \
+                str(datetime.now())+'_'+self.browser
             res_filename = res_filename.replace(":", "-")
             test_results_path = self._paths['test_results_path'] + res_filename
             # write test results to yaml file
@@ -594,7 +664,7 @@ class Start_Execution(Actions):
                             testdata, split_step[2])
                     else:
                         test_data = 'NA'
-                    test_step_result = self.execute_test_step(
+                    test_step_result, test_step_result_desc = self.execute_test_step(
                         driver, action, _element, test_data)
                     step_endTime = time.time()
                     if(test_step_result.lower() == "fail"):
@@ -602,6 +672,7 @@ class Start_Execution(Actions):
                     temp_result = {
                         "Test Step": test_step,
                         "Test Step Result": test_step_result,
+                        "Test Result Description": test_step_result_desc,
                         "duration(sec)": step_endTime - step_startTime}
                     test_steps_result.append(temp_result)
                 test_script_result['Test_Steps_Result'].append(
@@ -668,7 +739,8 @@ class Start_Execution(Actions):
                     test_suite_result['duration(sec)'] = 0
                     test_suites_result.append(test_suite_result)
                     # test results file name
-            res_filename = r'\suite_results_'+str(datetime.now())+'.yaml'
+            res_filename = r'\suite_results_' + \
+                str(datetime.now())+'_'+self.browser
             res_filename = res_filename.replace(":", "-")
             test_results_path = self._paths['test_results_path'] + res_filename
             # write test results to yaml file
@@ -695,7 +767,7 @@ if __name__ == "__main__":
     browser = exec_params['browser']
 
     # loader class
-    loader = exec_params['loader_classname']
+    loader = exec_params['loader_class']
 
     # Execution mode
     execution_mode = exec_params['execution_mode']
@@ -729,14 +801,29 @@ if __name__ == "__main__":
                       'db_password': db_details['db_password']}
 
     # Initiate Execution
-    execution = Start_Execution(folder_paths, browser, db_credentials)
-    try:
-        if execution_mode == 1:
-            execution.scripts_execution()
-        elif execution_mode == 2:
-            execution.suite_execution()
-        else:
-            print("Input Valid Execution mode")
-    except Exception as e:
-        logging.error(e)
-        print("Exception occurred in main execution ", e)
+    def initiate_execution(folder_paths, browser, db_credentials):
+        execution = Start_Execution(folder_paths, browser, db_credentials)
+        try:
+            if execution_mode == 1:
+                execution.scripts_execution()
+            elif execution_mode == 2:
+                execution.suite_execution()
+            else:
+                print("Input Valid Execution mode")
+        except Exception as e:
+            logging.error(e)
+            print("Exception occurred in main execution ", e)
+
+    # If the browser provided in the config file is a list,
+    # then execution will start in multiple browsers.
+    if type(browser) is list:
+        thread_list = []
+        for i, browse in enumerate(browser):
+            thr = Thread(target=initiate_execution, args=[
+                         folder_paths, browse, db_credentials])
+            thread_list.append(thr)
+            thr.start()
+        for thr in thread_list:
+            thr.join()
+    else:
+        initiate_execution(folder_paths, browser, db_credentials)
