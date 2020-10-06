@@ -381,6 +381,15 @@ class Actions:
         return result, result_description
 
     def hover(self, driver, _element):
+        """hover pointer to an element
+
+        Args:
+            driver (object): webdriver
+            _element (webelement): Web element
+
+        Returns:
+            str : action result and description
+        """
         try:
             ActionChains(driver).move_to_element(_element).perform()
             result = "pass"
@@ -389,6 +398,32 @@ class Actions:
             result = "fail"
             result_description = "hover failed due to an exception " + \
                 str(e)
+        return result, result_description
+
+    def color(self, _element, test_data):
+        """Verify the color code of the element
+
+        Args:
+            _element (webelement): web element
+            test_data (str): color code
+
+        Returns:
+            str: action result and description
+        """
+        try:
+            act_code = _element.get_attribute('fill')
+            if act_code == test_data:
+                result = "pass"
+                result_description = "color match successful"
+            else:
+                result = "fail"
+                result_description =\
+                    "color match failed expected "+test_data +\
+                    " actual "+act_code
+        except Exception as e:
+            result = "failed"
+            result_description =\
+                "color match failed due to an exception "+str(e)
         return result, result_description
 
 
@@ -637,6 +672,11 @@ class Start_Execution(Actions):
             elif action == "placeholder":
                 action_result, res_desc = self.placeholder(
                     test_element, test_data)
+            elif action == "hover":
+                action_result, res_desc = self.hover(driver,
+                                                     test_element)
+            elif action == "color":
+                action_result, res_desc = self.color(test_element, test_data)
             else:
                 print("Action does not exist, please check")
                 action_result = "fail"
