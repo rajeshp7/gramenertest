@@ -14,6 +14,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as expCond
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import ElementNotVisibleException
 from selenium.common.exceptions import ElementNotSelectableException
 from selenium.common.exceptions import ElementClickInterceptedException
@@ -54,7 +55,7 @@ class Database:
         return db_connector
 
     def execute_select_query(self, db_credentials, query):
-        """Execute a select query, store the value in a dictionary 
+        """Execute a select query, store the value in a dictionary
         and return the result
 
         Args:
@@ -224,8 +225,8 @@ class Actions:
             logging.error(e)
             print("Exception in text", e)
             result = "fail"
-            result_description = "text verification failed due to exception" + \
-                str(e)
+            result_description = "text verification failed " +\
+                "due to exception" + str(e)
         return result, result_description
 
     def close(self, driver):
@@ -245,7 +246,7 @@ class Actions:
             logging.error(e)
             print("Exception while closing the browser: ", e)
             result = "fail"
-            result_description = "Close browser failed due to an exception " + \
+            result_description = "Close failed due to an exception " + \
                 str(e)
         return result, result_description
 
@@ -282,7 +283,7 @@ class Actions:
         except Exception as e:
             print('Exception occured while executing expression', e)
             result = "fail"
-            result_description = "Execute expression failed due to an exception " + \
+            result_description = "expression failed due to an exception " + \
                 str(e)
 
         return result, result_description
@@ -315,7 +316,7 @@ class Actions:
         except Exception as e:
             print("Exception occurred in select ", e)
             result = "fail"
-            result_description = "Select action failed due to an exception " + \
+            result_description = "Select failed due to an exception " + \
                 str(e)
         return result, result_description
 
@@ -347,7 +348,7 @@ class Actions:
         except Exception as e:
             print("Exception occurred in dropdown_options ", e)
             result = "fail"
-            result_description = "dropdown options validation failed due to an exception" + \
+            result_description = "validation failed due to an exception" + \
                 str(e)
         return result, result_description
 
@@ -355,7 +356,8 @@ class Actions:
         """Validate the placeholder text
 
         Args:
-            _element (webelement): element for which placeholder should be validated
+            _element (webelement): element for which
+            placeholder should be validated
             test_data (str): expected value
 
         Returns:
@@ -375,6 +377,17 @@ class Actions:
         except Exception as e:
             result = "fail"
             result_description = "Exception in placeholder validation " +\
+                str(e)
+        return result, result_description
+
+    def hover(self, driver, _element):
+        try:
+            ActionChains(driver).move_to_element(_element).perform()
+            result = "pass"
+            result_description = "hover to the element is successful"
+        except Exception as e:
+            result = "fail"
+            result_description = "hover failed due to an exception " + \
                 str(e)
         return result, result_description
 
@@ -704,8 +717,9 @@ class Start_Execution(Actions):
                             testdata, split_step[2])
                     else:
                         test_data = 'NA'
-                    test_step_result, test_step_result_desc = self.execute_test_step(
-                        driver, action, _element, test_data)
+                    test_step_result, test_step_result_desc =\
+                        self.execute_test_step(
+                            driver, action, _element, test_data)
                     step_endTime = time.time()
                     if(test_step_result.lower() == "fail"):
                         res_flag = 1
