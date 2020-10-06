@@ -19,7 +19,7 @@ import argparse
 import sys
 import logging
 
-from gtest import __version__
+from gramenertest import __version__
 
 __author__ = "rajeshp7"
 __copyright__ = "rajeshp7"

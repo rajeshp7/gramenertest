@@ -111,11 +111,17 @@ class Actions:
         geckodriver_path = dir_path+r'\drivers\geckodriver.exe'
         try:
             if browser.lower() == 'chrome':
-                driver = webdriver.Chrome(
-                    executable_path=chromedriver_path)
+                options = webdriver.ChromeOptions()
+                options.add_argument("start-maximized")
+                options.add_argument("disable-infobars")
+                options.add_argument("--disable-extensions")
+                driver = webdriver.Chrome(options=options,
+                                          executable_path=chromedriver_path)
             elif browser.lower() == 'firefox':
-                driver = webdriver.Firefox(
-                    executable_path=geckodriver_path)
+                options = webdriver.FirefoxOptions()
+                options.add_argument("start-maximized")
+                driver = webdriver.Firefox(options=options,
+                                           executable_path=geckodriver_path)
                 # TODO
             elif browser.lower() == 'ie':
                 pass
@@ -167,7 +173,6 @@ class Actions:
             result_description = "Click action successful"
         except Exception as e:
             logging.error(e)
-            print('Exception occured while click: ', e)
             result = "fail"
             result_description = "Click action failed due to an exception " + \
                 str(e)
@@ -346,6 +351,33 @@ class Actions:
                 str(e)
         return result, result_description
 
+    def placeholder(self, _element, test_data):
+        """Validate the placeholder text
+
+        Args:
+            _element (webelement): element for which placeholder should be validated
+            test_data (str): expected value
+
+        Returns:
+            str: action result and result description
+        """
+        try:
+            placeholder_text = _element.get_attribute('placeholder')
+            print(placeholder_text)
+            if placeholder_text == test_data:
+                result = "pass"
+                result_description = "placeholder text validation successful"
+            else:
+                result = "fail"
+                result_description = "placeholder text not matching " +\
+                    test_data + "is expected but " + placeholder_text +\
+                    " is actual"
+        except Exception as e:
+            result = "fail"
+            result_description = "Exception in placeholder validation " +\
+                str(e)
+        return result, result_description
+
 
 class Start_Execution(Actions):
     """Class to start test script execution
@@ -513,6 +545,11 @@ class Start_Execution(Actions):
                 element = driver_wait.until(
                     expCond.presence_of_element_located
                     ((By.CLASS_NAME, test_element)))
+            elif test_element.startswith('tag'):
+                test_element = test_element.split('.')
+                element = driver_wait.until(
+                    expCond.presence_of_element_located
+                    ((By.TAG_NAME, test_element[1])))
             else:
                 element = driver_wait.until(
                     expCond.presence_of_element_located
@@ -584,10 +621,13 @@ class Start_Execution(Actions):
             elif action == "dropdown_options":
                 action_result, res_desc = self.dropdown_options(
                     test_element, test_data)
+            elif action == "placeholder":
+                action_result, res_desc = self.placeholder(
+                    test_element, test_data)
             else:
-                print("Action does not exsit, please check")
+                print("Action does not exist, please check")
                 action_result = "fail"
-                res_desc = "Action does not exsit"
+                res_desc = "Action does not exist"
         except Exception as e:
             print("error occured in execute_test_step: ", e)
             action_result = "fail"
