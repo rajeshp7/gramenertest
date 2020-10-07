@@ -696,7 +696,7 @@ class Start_Execution(Actions):
                 action_result, res_desc = self.click(driver, test_element)
             elif action == "wait":
                 action_result, res_desc = self.wait(test_data)
-            elif action == "text":
+            elif action == "verifytext":
                 action_result, res_desc = self.text(test_element, test_data)
             elif action == "close":
                 action_result, res_desc = self.close(driver)
@@ -708,7 +708,7 @@ class Start_Execution(Actions):
             elif action == "select":
                 action_result, res_desc = self.select_option(
                     test_element, test_data)
-            elif action == "dropdown_options":
+            elif action == "dropdownoptions":
                 action_result, res_desc = self.dropdown_options(
                     test_element, test_data)
             elif action == "placeholder":
