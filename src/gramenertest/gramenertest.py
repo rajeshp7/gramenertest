@@ -426,6 +426,48 @@ class Actions:
                 "color match failed due to an exception "+str(e)
         return result, result_description
 
+    def alert_text(self, driver, test_data):
+        """Validate the alert text
+
+        Args:
+            driver (obj): webdriver
+            test_data (str): Expected text
+
+        Returns:
+            str: action result and description
+        """
+        try:
+            alert_text = driver.switch_to_alert().text()
+            if alert_text == test_data:
+                result = "pass"
+                result_description = "alert text validation successful"
+            else:
+                result = "fail"
+                result_description = "alert text expected " + test_data +\
+                    " actual " + alert_text
+        except Exception as e:
+            result = "fail"
+            result_description = "alert_text failed due to "+str(e)
+        return result, result_description
+
+    def alert_close(self, driver):
+        """[summary]
+
+        Args:
+            driver ([type]): [description]
+
+        Returns:
+            [type]: [description]
+        """
+        try:
+            driver.switch_to_alert().accept()
+            result = "pass"
+            result_description = "alert close successful"
+        except Exception as e:
+            result = "fail"
+            result_description = "alert close failed due to "+str(e)
+        return result, result_description
+
 
 class Start_Execution(Actions):
     """Class to start test script execution
@@ -677,6 +719,10 @@ class Start_Execution(Actions):
                                                      test_element)
             elif action == "color":
                 action_result, res_desc = self.color(test_element, test_data)
+            elif action == "alerttext":
+                action_result, res_desc = self.alert_text(driver, test_data)
+            elif action == "alertclose":
+                action_result, res_desc = self.alert_close(driver)
             else:
                 print("Action does not exist, please check")
                 action_result = "fail"
