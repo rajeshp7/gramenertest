@@ -12,6 +12,9 @@ Description
 A hybrid automation framework based on selenium webdriver written in python
 
 
+Click [here](https://github.com/rajeshp7/gramenertest/wiki) for more details
+
+
 Note
 ====
 
