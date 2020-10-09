@@ -720,7 +720,7 @@ class Start_Execution(Actions):
                 action_result, res_desc = self.click(driver, test_element)
             elif action == "wait":
                 action_result, res_desc = self.wait(test_data)
-            elif action == "verifytext":
+            elif action == "text":
                 action_result, res_desc = self.text(test_element, test_data)
             elif action == "close":
                 action_result, res_desc = self.close(driver)
