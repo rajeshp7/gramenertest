@@ -54,7 +54,7 @@ class Database:
             db_credentials['server'], db_credentials['db_name'], db_credentials['db_user'], db_credentials['db_password']))
         return db_connector
 
-    def execute_select_query(self, db_credentials, query):
+    def select_query(self, db_credentials, query):
         """Execute a select query, store the value in a dictionary
         and return the result
 
@@ -75,11 +75,16 @@ class Database:
             db_connection = self.connect_to_database(db_credentials)
             db_cursor = db_connection.cursor()
             db_cursor.execute(query)
-            row = db_cursor.fetchone()
-            temp_row = str(row).split(',')
-            if '(' in temp_row[0]:
-                row = temp_row[0].replace('(', '')
-            auto_dictionary[res_var] = row
+            row = db_cursor.fetchall()
+            if len(row) == 1:
+                temp_row = str(row).split(',')
+                if '[(' in temp_row[0]:
+                    row = temp_row[0].replace('[(', '')
+                auto_dictionary[res_var] = row
+            elif len(row) > 1:
+                temp1_row = str(row).replace('(', '[')
+                temp1_row = temp1_row.replace(')', ']')
+                auto_dictionary[res_var] = temp1_row
             result = "pass"
             result_description = "Select query successful"
         except Exception as e:
@@ -250,7 +255,7 @@ class Actions:
                 str(e)
         return result, result_description
 
-    def execute_expression(self, expression):
+    def expression(self, expression):
         try:
             global auto_dictionary
             temp_exp = expression.split('|')
@@ -365,7 +370,6 @@ class Actions:
         """
         try:
             placeholder_text = _element.get_attribute('placeholder')
-            print(placeholder_text)
             if placeholder_text == test_data:
                 result = "pass"
                 result_description = "placeholder text validation successful"
@@ -466,6 +470,26 @@ class Actions:
         except Exception as e:
             result = "fail"
             result_description = "alert close failed due to "+str(e)
+        return result, result_description
+
+    def script(self, driver, test_data):
+        """Execute JavaScript
+
+        Args:
+            driver (obj): webdriver
+            test_data (str): script to be executed
+
+        Returns:
+            str : action result and description
+        """
+        try:
+            driver.execute_script(test_data)
+            result = "pass"
+            result_description = "Script execution successful"
+        except Exception as e:
+            result = "fail"
+            result_description = "Script execution failed due to "\
+                + str(e)
         return result, result_description
 
 
@@ -700,15 +724,15 @@ class Start_Execution(Actions):
                 action_result, res_desc = self.text(test_element, test_data)
             elif action == "close":
                 action_result, res_desc = self.close(driver)
-            elif action == "executeselectquery":
-                action_result, res_desc = self.database.execute_select_query(
+            elif action == "selectquery":
+                action_result, res_desc = self.database.select_query(
                     self.db_credentials, test_data)
-            elif action == "executeexpression":
-                action_result, res_desc = self.execute_expression(test_data)
+            elif action == "expression":
+                action_result, res_desc = self.expression(test_data)
             elif action == "select":
                 action_result, res_desc = self.select_option(
                     test_element, test_data)
-            elif action == "dropdown_options":
+            elif action == "dropdownoptions":
                 action_result, res_desc = self.dropdown_options(
                     test_element, test_data)
             elif action == "placeholder":
@@ -723,8 +747,10 @@ class Start_Execution(Actions):
                 action_result, res_desc = self.alert_text(driver, test_data)
             elif action == "alertclose":
                 action_result, res_desc = self.alert_close(driver)
+            elif action == "script":
+                action_result, res_desc = self.script(driver, test_data)
             else:
-                print("Action does not exist, please check")
+                print("Action does not exist, please check ", action)
                 action_result = "fail"
                 res_desc = "Action does not exist"
         except Exception as e:
