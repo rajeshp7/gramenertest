@@ -92,7 +92,6 @@ class Database:
             result = "fail"
             result_description = "Select query failed due to an exception " + \
                 str(e)
-            print("Exception occurred while executing a query ", e)
         return result, result_description
 
 
@@ -281,6 +280,11 @@ class Actions:
             elif exp_type.lower().startswith('per'):
                 auto_dictionary[store_var] = auto_dictionary[temp_exp[2]] * 100
                 result = "pass"
+            elif exp_type.lower().startswith('eql'):
+                if param1 == param2:
+                    result = "pass"
+                else:
+                    result = "fail"
             else:
                 print('expression not correct')
                 result = "fail"
@@ -482,8 +486,14 @@ class Actions:
         Returns:
             str : action result and description
         """
+        global auto_dictionary
         try:
-            driver.execute_script(test_data)
+            if test_data.contains("|"):
+                temp_test_data = test_data.split("|")
+                auto_dictionary[temp_test_data[0]
+                                ] = driver.execute(temp_test_data[1])
+            else:
+                driver.execute_script(test_data)
             result = "pass"
             result_description = "Script execution successful"
         except Exception as e:
@@ -599,8 +609,8 @@ class Start_Execution(Actions):
                         if (obj_control[control_name]):
                             obj_prop = obj_control[control_name]
                             return obj_prop
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        print("Exception in object Repo ", str(e))
         return obj_prop
 
     # Get Test Data
@@ -620,7 +630,8 @@ class Start_Execution(Actions):
             if str(test_data).startswith('~'):
                 test_data = auto_dictionary[test_data.strip('~')]
         else:
-            print("Test data is not available")
+            print(_data + " not available in test data file")
+            test_data = 'NA'
         return test_data
         # Get Test Element
 
@@ -754,10 +765,11 @@ class Start_Execution(Actions):
                 action_result = "fail"
                 res_desc = "Action does not exist"
         except Exception as e:
-            print("error occured in execute_test_step: ", e)
+            print(action+": error occured in execute_test_step: ", e)
             action_result = "fail"
             res_desc = "error occured in execute_test_step: "+str(e)
-        return action_result, res_desc
+        finally:
+            return action_result, res_desc
 
     # Script Execution
     def scripts_execution(self):
@@ -770,6 +782,11 @@ class Start_Execution(Actions):
             test_scripts = self.collect_test_scripts(
                 self._paths['test_scripts_path'])
             test_scripts_result = []
+            # test results file name
+            res_filename = r'\results_' + \
+                str(datetime.now())+'_'+self.browser
+            res_filename = res_filename.replace(":", "-")
+            test_results_path = self._paths['test_results_path'] + res_filename
             for test_script in test_scripts:
                 startTime = time.time()
                 # Test Script results
@@ -777,17 +794,15 @@ class Start_Execution(Actions):
                 endTime = time.time()
                 test_script_result['duration(sec)'] = endTime - startTime
                 test_scripts_result.append(test_script_result)
-            # test results file name
-            res_filename = r'\results_' + \
-                str(datetime.now())+'_'+self.browser
-            res_filename = res_filename.replace(":", "-")
-            test_results_path = self._paths['test_results_path'] + res_filename
             # write test results to yaml file
-            self.write_test_script_result(
-                test_results_path, test_scripts_result)
+            # self.write_test_script_result(
+            #     test_results_path, test_scripts_result)
         except Exception as e:
             logging.error(e)
             print("Exception occured in Scripts execution ", e)
+        finally:
+            self.write_test_script_result(
+                test_results_path, test_scripts_result)
     # Start Execution
 
     def start_execution(self, _script):
@@ -832,6 +847,8 @@ class Start_Execution(Actions):
                     test_step_result, test_step_result_desc =\
                         self.execute_test_step(
                             driver, action, _element, test_data)
+                    # print(test_step_result)
+                    # print(test_step_result_desc)
                     step_endTime = time.time()
                     if(test_step_result.lower() == "fail"):
                         res_flag = 1
@@ -841,18 +858,21 @@ class Start_Execution(Actions):
                         "Test Result Description": test_step_result_desc,
                         "duration(sec)": step_endTime - step_startTime}
                     test_steps_result.append(temp_result)
-                test_script_result['Test_Steps_Result'].append(
-                    test_steps_result)
+                # test_script_result['Test_Steps_Result'].append(
+                #     test_steps_result)
                 if res_flag == 1:
                     test_script_result['result'] = "Fail"
                 else:
                     test_script_result['result'] = 'Pass'
-            return test_script_result
+            # return test_script_result
         except Exception as e:
             logging.error(e)
             print("Exception occurred in start execution ", e)
         finally:
             driver.quit()
+            test_script_result['Test_Steps_Result'].append(
+                test_steps_result)
+            return test_script_result
 
     def suite_execution(self):
         """Function to execute a test suite, based on the execution mode
@@ -910,11 +930,14 @@ class Start_Execution(Actions):
             res_filename = res_filename.replace(":", "-")
             test_results_path = self._paths['test_results_path'] + res_filename
             # write test results to yaml file
-            self.write_test_script_result(
-                test_results_path, test_suites_result)
+            # self.write_test_script_result(
+            #     test_results_path, test_suites_result)
         except Exception as e:
             logging.error(e)
             print("Exception occured in test suite execution ", e)
+        finally:
+            self.write_test_script_result(
+                test_results_path, test_suites_result)
 
 
 if __name__ == "__main__":
