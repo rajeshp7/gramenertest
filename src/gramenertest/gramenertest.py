@@ -609,8 +609,9 @@ class Start_Execution(Actions):
                         if (obj_control[control_name]):
                             obj_prop = obj_control[control_name]
                             return obj_prop
-                    except Exception as e:
-                        print("Exception in object Repo ", str(e))
+                    except Exception:
+                        # print("Exception in object Repo ", str(e))
+                        pass
         return obj_prop
 
     # Get Test Data
