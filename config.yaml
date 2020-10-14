@@ -1,13 +1,13 @@
 # """
 # execution_mode(mandatory) :
-#   1 - will tell the script to execute all the test scripts(.yaml) files         available under test scripts folder.
+#   1 - will tell the script to execute all the test scripts(.yaml) files available under test scripts folder.
 #   2 - test scripts execution is based on the test suite defined. Controlled execution where you can define what to execute and what not to.
 
 # browser(mandatory):
 #   browser name(eg. chrome) : launch specific browser to execute the test cases.
-#   browsers list([chrome, firefox]) : launch all browsers mentioned in the list parllely to execute the test cases
+#   browsers list([chrome, firefox]) : launch all browsers mentioned in the list parallelly to execute the test cases
 
-# loader_class(optional): If the loader class name is specified, script will wait till the page loading is completed. If not specified, explicit waits should be added to the test script.
+# loader_class(optional): If the loader class name is specified, the script will wait till the page loading is completed. If not specified, explicit waits should be added to the test script.
 
 # db_details(optional): Database server and credentials to execute queries.
 
@@ -20,7 +20,7 @@ browser: chrome
 loader_class: loading
 db_details:
   database: mssql
-  db_server: dell-staging.database.windows.net
-  db_name: dell-voc-dev
-  db_user: gramener
-  db_password: kV$4uGC!B
+  db_server: XXXXXX
+  db_name: XXXXXX
+  db_user: XXXXXX
+  db_password: XXXXXX
