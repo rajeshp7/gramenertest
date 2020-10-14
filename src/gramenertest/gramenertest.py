@@ -75,23 +75,23 @@ class Database:
             db_connection = self.connect_to_database(db_credentials)
             db_cursor = db_connection.cursor()
             db_cursor.execute(query)
-            row = db_cursor.fetchall()
+            row = [list(i) for i in db_cursor.fetchall()]
             if len(row) == 1:
-                temp_row = str(row).split(',')
-                if '[(' in temp_row[0]:
-                    row = temp_row[0].replace('[(', '')
-                auto_dictionary[res_var] = row
+                t_row = row[0]
+                auto_dictionary[res_var] = t_row[0]
             elif len(row) > 1:
-                temp1_row = str(row).replace('(', '[')
-                temp1_row = temp1_row.replace(')', ']')
-                auto_dictionary[res_var] = temp1_row
+                temp_row_val = []
+                for j in range(0, len(row)):
+                    temp_row_val.append("".join(row[j]))
+            auto_dictionary[res_var] = temp_row_val
             result = "pass"
             result_description = "Select query successful"
         except Exception as e:
             row = 'null'
             result = "fail"
-            result_description = "Select query failed due to an exception " + \
-                str(e)
+            result_description = "Select query failed due to "+str(e)
+        finally:
+            db_connection.close()
         return result, result_description
 
 
@@ -255,6 +255,14 @@ class Actions:
         return result, result_description
 
     def expression(self, expression):
+        """Methos to execute an expression
+
+        Args:
+            expression (str): expression details
+
+        Returns:
+            str: action result and description
+        """
         try:
             global auto_dictionary
             temp_exp = expression.split('|')
@@ -488,18 +496,43 @@ class Actions:
         """
         global auto_dictionary
         try:
-            if test_data.contains("|"):
+            if "|" in test_data:
                 temp_test_data = test_data.split("|")
-                auto_dictionary[temp_test_data[0]
-                                ] = driver.execute(temp_test_data[1])
+                var = temp_test_data[0]
+                script = temp_test_data[1]
+                auto_dictionary[var] = driver.execute_script(script)
             else:
                 driver.execute_script(test_data)
             result = "pass"
             result_description = "Script execution successful"
         except Exception as e:
             result = "fail"
-            result_description = "Script execution failed due to "\
-                + str(e)
+            result_description = "Script execution failed due to "+str(e)
+        return result, result_description
+
+    def comparelist(self, test_data):
+        """Method to compare a list of elements
+
+        Args:
+            test_data (str): lists to compare
+
+        Returns:
+            str: action result and description
+        """
+        global auto_dictionary
+        try:
+            temp_test_var = test_data.split(",")
+            temp_list1 = auto_dictionary[temp_test_var[0]]
+            temp_list2 = auto_dictionary[temp_test_var[1]]
+            if temp_list1 == temp_list2:
+                result = "pass"
+                result_description = "values are equal"
+            else:
+                result = "fail"
+                result_description = "values are not equal"
+        except Exception as e:
+            result = "fail"
+            result_description = "failed due to an exception "+str(e)
         return result, result_description
 
 
@@ -610,7 +643,6 @@ class Start_Execution(Actions):
                             obj_prop = obj_control[control_name]
                             return obj_prop
                     except Exception:
-                        # print("Exception in object Repo ", str(e))
                         pass
         return obj_prop
 
@@ -626,15 +658,20 @@ class Start_Execution(Actions):
             str: variable value
         """
         global auto_dictionary
-        if _data in dataVar:
-            test_data = dataVar.get(_data)
-            if str(test_data).startswith('~'):
-                test_data = auto_dictionary[test_data.strip('~')]
-        else:
-            print(_data + " not available in test data file")
+        try:
+            if _data in dataVar:
+                test_data = dataVar.get(_data)
+                if str(test_data).startswith('~'):
+                    test_data = auto_dictionary[test_data.strip('~')]
+            else:
+                print(_data + " not available in test data file")
+                test_data = 'NA'
+        except Exception as e:
             test_data = 'NA'
+            print(_data + "not available", e)
         return test_data
-        # Get Test Element
+
+    # Get Test Element
 
     def get_test_element(self, driver, test_element):
         """Function to get the test element property
@@ -680,9 +717,10 @@ class Start_Execution(Actions):
                 element = driver_wait.until(
                     expCond.presence_of_element_located
                     ((By.LINK_TEXT, test_element)))
-            return element
         except Exception as e:
+            element = ""
             print("Exception occurred in get_test_element: ", test_element, e)
+        return element
 
     def open_application(self, driver, app_url):
         """Function to open the application in the browser
@@ -761,6 +799,8 @@ class Start_Execution(Actions):
                 action_result, res_desc = self.alert_close(driver)
             elif action == "script":
                 action_result, res_desc = self.script(driver, test_data)
+            elif action == "comparelist":
+                action_result, res_desc = self.comparelist(test_data)
             else:
                 print("Action does not exist, please check ", action)
                 action_result = "fail"
@@ -845,9 +885,8 @@ class Start_Execution(Actions):
                             testdata, split_step[2])
                     else:
                         test_data = 'NA'
-                    test_step_result, test_step_result_desc =\
-                        self.execute_test_step(
-                            driver, action, _element, test_data)
+                    test_step_result, test_step_result_desc = self.execute_test_step(
+                        driver, action, _element, test_data)
                     # print(test_step_result)
                     # print(test_step_result_desc)
                     step_endTime = time.time()
@@ -882,6 +921,11 @@ class Start_Execution(Actions):
             test_suites = self.read_yaml(self._paths['test_suite_path'])
             test_suites_result = []
             suite_res_flag = 0
+            # test results file name
+            res_filename = r'\suite_results_' + \
+                str(datetime.now())+'_'+self.browser
+            res_filename = res_filename.replace(":", "-")
+            test_results_path = self._paths['test_results_path'] + res_filename
             for suite in test_suites:
                 test_suite_result = {
                     "Suite": suite['Suite Name'], "Result": '',
@@ -925,11 +969,11 @@ class Start_Execution(Actions):
                     test_suite_result['result'] = "Skip"
                     test_suite_result['duration(sec)'] = 0
                     test_suites_result.append(test_suite_result)
-                    # test results file name
-            res_filename = r'\suite_results_' + \
-                str(datetime.now())+'_'+self.browser
-            res_filename = res_filename.replace(":", "-")
-            test_results_path = self._paths['test_results_path'] + res_filename
+            #         # test results file name
+            # res_filename = r'\suite_results_' + \
+            #     str(datetime.now())+'_'+self.browser
+            # res_filename = res_filename.replace(":", "-")
+            # test_results_path = self._paths['test_results_path'] + res_filename
             # write test results to yaml file
             # self.write_test_script_result(
             #     test_results_path, test_suites_result)
@@ -947,11 +991,19 @@ if __name__ == "__main__":
 
     dir_path = dirname(dirname(os.getcwd()))
 
-    # config_file_path
-    config_file_path = dir_path+r'\\config.yaml'
-    exec_params = read_yaml(config_file_path)
-
     home_path = dirname(dirname(dirname(os.getcwd())))
+
+    # folder paths
+    test_scripts_path = home_path+r'\artefacts\scripts'
+    test_results_path = home_path+r'\artefacts\results'
+    test_objects_path = home_path+r'\artefacts\objects'
+    test_data_path = home_path+r'\artefacts\data'
+    test_suite_path = home_path+r'\artefacts\suite'
+
+    # config_file_path
+    config_file_path = home_path+r'\artefacts\config.yaml'
+
+    exec_params = read_yaml(config_file_path)
 
     # Browsers
     browser = exec_params['browser']
@@ -961,13 +1013,6 @@ if __name__ == "__main__":
 
     # Execution mode
     execution_mode = exec_params['execution_mode']
-
-    # folder paths
-    test_scripts_path = home_path+r'\artefacts\scripts'
-    test_results_path = home_path+r'\artefacts\results'
-    test_objects_path = home_path+r'\artefacts\objects'
-    test_data_path = home_path+r'\artefacts\data'
-    test_suite_path = home_path+r'\artefacts\suite'
 
     # create test scripts results directory
     try:
@@ -1010,7 +1055,7 @@ if __name__ == "__main__":
         thread_list = []
         for i, browse in enumerate(browser):
             thr = Thread(target=initiate_execution, args=[
-                         folder_paths, browse, db_credentials])
+                folder_paths, browse, db_credentials])
             thread_list.append(thr)
             thr.start()
         for thr in thread_list:
