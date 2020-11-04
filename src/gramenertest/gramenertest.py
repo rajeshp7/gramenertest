@@ -29,7 +29,7 @@ logging.basicConfig(filename='debug.log',
 
 def read_yaml(config_file_path):
     yaml_contents = yaml.load(
-        open(config_file_path), Loader=yaml.FullLoader)
+        open(config_file_path, encoding="utf8"), Loader=yaml.FullLoader)
     return yaml_contents
 
 
@@ -111,20 +111,26 @@ class Actions:
         Returns:
             object: driver
         """
+        global browser_mode
         dir_path = dirname(dirname(os.getcwd()))
         chromedriver_path = dir_path+r'\\drivers\\chromedriver.exe'
         geckodriver_path = dir_path+r'\drivers\geckodriver.exe'
+
         try:
             if browser.lower() == 'chrome':
                 options = webdriver.ChromeOptions()
                 options.add_argument("start-maximized")
                 options.add_argument("disable-infobars")
                 options.add_argument("--disable-extensions")
+                if browser_mode == 'headless':
+                    options.add_argument("--headless")
                 driver = webdriver.Chrome(options=options,
                                           executable_path=chromedriver_path)
             elif browser.lower() == 'firefox':
                 options = webdriver.FirefoxOptions()
                 options.add_argument("start-maximized")
+                if browser_mode == 'headless':
+                    options.add_argument("--headless")
                 driver = webdriver.Firefox(options=options,
                                            executable_path=geckodriver_path)
                 # TODO
@@ -224,7 +230,7 @@ class Actions:
                       (test_data, temp_text))
                 result = "fail"
                 result_description = "text verification failed," + \
-                    test_data+"expected but"+temp_text+"is actual"
+                    test_data+"expected but "+temp_text+" is actual"
         except Exception as e:
             logging.error(e)
             print("Exception in text", e)
@@ -562,7 +568,7 @@ class Start_Execution(Actions):
         Returns:
             obj: contents of the yaml file
         """
-        content = yaml.load(open(file_path),
+        content = yaml.load(open(file_path, encoding="utf8"),
                             Loader=yaml.FullLoader)
         return content
 
@@ -589,7 +595,8 @@ class Start_Execution(Actions):
             str: test script name
             str: test steps
         """
-        actions = yaml.load(open(test_script_path), Loader=yaml.FullLoader)
+        actions = yaml.load(
+            open(test_script_path, encoding="utf8"), Loader=yaml.FullLoader)
         name = actions['name']
         steps = actions['steps']
         return name, steps
@@ -1006,7 +1013,11 @@ if __name__ == "__main__":
     exec_params = read_yaml(config_file_path)
 
     # Browsers
-    browser = exec_params['browser']
+    # browser = exec_params['browser']
+    browser = exec_params['browser_details']['browser']
+    browser_mode = exec_params['browser_details']['mode']
+
+    # browser_details = exec_params['browser_details']
 
     # loader class
     loader = exec_params['loader_class']
@@ -1037,7 +1048,8 @@ if __name__ == "__main__":
 
     # Initiate Execution
     def initiate_execution(folder_paths, browser, db_credentials):
-        execution = Start_Execution(folder_paths, browser, db_credentials)
+        execution = Start_Execution(
+            folder_paths, browser, db_credentials)
         try:
             if execution_mode == 1:
                 execution.scripts_execution()
