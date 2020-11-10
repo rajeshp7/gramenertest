@@ -7,6 +7,7 @@ import json
 from os.path import dirname
 from json2html import json2html
 import logging
+import sys
 import pyodbc
 from threading import Thread
 from selenium import webdriver
@@ -21,9 +22,10 @@ from selenium.common.exceptions import ElementClickInterceptedException
 
 
 # log configuration
-logging.basicConfig(filename='debug.log',
-                    level=logging.DEBUG, format='%(asctime)s %(message)s')
-
+# logging.basicConfig(filename='debug.log',
+#                     level=logging.DEBUG, format='%(asctime)s %(message)s')
+logging.basicConfig(stream=sys.stderr, level=logging.INFO,
+                    format='%(asctime)s %(message)s')
 # read config file
 
 
@@ -141,7 +143,7 @@ class Actions:
                 pass
                 # TODO
             driver.delete_all_cookies()
-            logging.info("Browser launched : ")
+            logging.info("Browser launched : "+browser)
             return driver
         except Exception as e:
             logging.error(e)
@@ -826,9 +828,13 @@ class Start_Execution(Actions):
             It is based on the execution mode.
         """
         try:
+            logging.info(
+                "[INFO] : Executing all the scripts available in scripts folder")
             # collect Test Scripts
             test_scripts = self.collect_test_scripts(
                 self._paths['test_scripts_path'])
+            logging.info("[INFO] : Total " +
+                         str(len(test_scripts))+" to be executed")
             test_scripts_result = []
             # test results file name
             res_filename = r'\results_' + \
@@ -838,6 +844,7 @@ class Start_Execution(Actions):
             for test_script in test_scripts:
                 startTime = time.time()
                 # Test Script results
+                logging.info("[INFO] : Executing Script "+test_script)
                 test_script_result = self.start_execution(test_script)
                 endTime = time.time()
                 test_script_result['duration(sec)'] = endTime - startTime
@@ -878,6 +885,7 @@ class Start_Execution(Actions):
                 test_steps_result = []
                 res_flag = 0
                 for test_step in test_steps:
+                    logging.info("[INFO] : Executing Step: "+test_step)
                     step_startTime = time.time()
                     split_step = test_step.split(" ")
                     action = split_step[0]
@@ -1013,11 +1021,8 @@ if __name__ == "__main__":
     exec_params = read_yaml(config_file_path)
 
     # Browsers
-    # browser = exec_params['browser']
     browser = exec_params['browser_details']['browser']
     browser_mode = exec_params['browser_details']['mode']
-
-    # browser_details = exec_params['browser_details']
 
     # loader class
     loader = exec_params['loader_class']
