@@ -233,6 +233,41 @@ class Actions:
                 "due to exception" + str(e)
         return result, result_description
 
+    def attribute(self, _element, test_data):
+        """ Added get attribute method to get the attribute value from that locator """
+
+        """Function to get the attribute of an element which helps to verify the presence of 
+        visuals/ no data images etc.
+
+        Args:
+            _element (obj): web element
+            test_data (str): locator|attribute value
+
+        Returns:
+            str: result of the attribute function
+        """
+        try:
+            temp_var = test_data.split('|')
+            attr_method = temp_var[0]
+            temp_value = temp_var[1]
+            attr = _element.get_attribute(attr_method)
+            if(attr == temp_value):
+                result = "pass"
+                result_description = "verification successful"
+            else:
+                print("comparision failed, expected %s and actual %s" %
+                        (temp_value, attr))
+                result = "fail"
+                result_description = "verification failed," + \
+                    temp_value+"expected but"+attr+"is actual"
+        except Exception as e:
+            logging.error(e)
+            print("Exception in verification", e)
+            result = "fail"
+            result_description = "verification failed " +\
+                "due to exception" + str(e)
+        return result, result_description
+
     def close(self, driver):
         """Function to close the browser
 
@@ -772,6 +807,8 @@ class Start_Execution(Actions):
                 action_result, res_desc = self.wait(test_data)
             elif action == "text":
                 action_result, res_desc = self.text(test_element, test_data)
+            elif action == "attribute":
+                action_result, res_desc = self.attribute(test_element, test_data)
             elif action == "close":
                 action_result, res_desc = self.close(driver)
             elif action == "selectquery":
