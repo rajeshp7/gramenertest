@@ -85,7 +85,7 @@ class Database:
                 temp_row_val = []
                 for j in range(0, len(row)):
                     temp_row_val.append("".join(row[j]))
-            auto_dictionary[res_var] = temp_row_val
+                auto_dictionary[res_var] = temp_row_val
             result = "pass"
             result_description = "Select query successful"
         except Exception as e:
@@ -125,6 +125,7 @@ class Actions:
                 options.add_argument("disable-infobars")
                 options.add_argument("--disable-extensions")
                 if browser_mode == 'headless':
+                    logging.info("[INFO] : Launching Browser in headless mode")
                     options.add_argument("--headless")
                 driver = webdriver.Chrome(options=options,
                                           executable_path=chromedriver_path)
@@ -829,12 +830,13 @@ class Start_Execution(Actions):
         """
         try:
             logging.info(
-                "[INFO] : Executing all the scripts available in scripts folder")
+                "[INFO] : Executing all the scripts \
+                available in scripts folder")
             # collect Test Scripts
             test_scripts = self.collect_test_scripts(
                 self._paths['test_scripts_path'])
             logging.info("[INFO] : Total " +
-                         str(len(test_scripts))+" to be executed")
+                         str(len(test_scripts))+" scripts to execute")
             test_scripts_result = []
             # test results file name
             res_filename = r'\results_' + \
@@ -844,20 +846,19 @@ class Start_Execution(Actions):
             for test_script in test_scripts:
                 startTime = time.time()
                 # Test Script results
-                logging.info("[INFO] : Executing Script "+test_script)
                 test_script_result = self.start_execution(test_script)
                 endTime = time.time()
-                test_script_result['duration(sec)'] = endTime - startTime
+                test_script_result['Duration(sec)'] = round(
+                    (endTime - startTime), 2)
                 test_scripts_result.append(test_script_result)
-            # write test results to yaml file
-            # self.write_test_script_result(
-            #     test_results_path, test_scripts_result)
         except Exception as e:
             logging.error(e)
             print("Exception occured in Scripts execution ", e)
         finally:
+            # write test results to yaml file
             self.write_test_script_result(
                 test_results_path, test_scripts_result)
+            logging.info("[INFO] : Scripts Execution Completed, Check Results")
     # Start Execution
 
     def start_execution(self, _script):
@@ -878,7 +879,12 @@ class Start_Execution(Actions):
                 test_script_filepath)
             test_data_dump = self.read_yaml(test_data_filepath)
             test_script_result = {
-                "Test Script": test_script_name, "Test_Steps_Result": []}
+                "Test Script": test_script_name,
+                "Result": "",
+                "Duration(sec)": "",
+                "Test_Steps_Result": []
+            }
+            logging.info("[INFO] : Executing Script "+_script)
             for testdata in test_data_dump:
                 driver = self.launch_browser(self.browser)
                 # Loop through steps
@@ -890,20 +896,30 @@ class Start_Execution(Actions):
                     split_step = test_step.split(" ")
                     action = split_step[0]
                     if split_step[1] != 'NA':
-                        test_element = self.get_object_property(
-                            split_step[1])
-                        _element = self.get_test_element(driver, test_element)
+                        try:
+                            test_element = self.get_object_property(
+                                split_step[1])
+                            _element = self.get_test_element(
+                                driver, test_element)
+                        except Exception as e:
+                            logging.error(e)
+                            logging.info("[ERROR] : "+str(e))
+                            print("Exception in object "+split_step[1])
                     else:
                         _element = 'NA'
                     if split_step[2] != 'NA':
-                        test_data = self.get_test_data(
-                            testdata, split_step[2])
+                        try:
+                            test_data = self.get_test_data(
+                                testdata, split_step[2])
+                        except Exception as e:
+                            logging.error(e)
+                            logging.info("[ERROR] : "+str(e))
+                            print("Exception in test data "+split_step[2])
                     else:
                         test_data = 'NA'
-                    test_step_result, test_step_result_desc = self.execute_test_step(
-                        driver, action, _element, test_data)
-                    # print(test_step_result)
-                    # print(test_step_result_desc)
+                    test_step_result, test_step_result_desc = \
+                        self.execute_test_step(
+                            driver, action, _element, test_data)
                     step_endTime = time.time()
                     if(test_step_result.lower() == "fail"):
                         res_flag = 1
@@ -911,22 +927,22 @@ class Start_Execution(Actions):
                         "Test Step": test_step,
                         "Test Step Result": test_step_result,
                         "Test Result Description": test_step_result_desc,
-                        "duration(sec)": step_endTime - step_startTime}
+                        "duration(sec)":
+                        round((step_endTime - step_startTime), 2)}
                     test_steps_result.append(temp_result)
-                # test_script_result['Test_Steps_Result'].append(
-                #     test_steps_result)
                 if res_flag == 1:
-                    test_script_result['result'] = "Fail"
+                    test_script_result["Result"] = "Fail"
                 else:
-                    test_script_result['result'] = 'Pass'
-            # return test_script_result
+                    test_script_result["Result"] = 'Pass'
         except Exception as e:
             logging.error(e)
+            test_script_result["Result"] = "Fail"
             print("Exception occurred in start execution ", e)
         finally:
             driver.quit()
             test_script_result['Test_Steps_Result'].append(
                 test_steps_result)
+            # test_script_result['Test_Steps_Result'] = test_steps_result
             return test_script_result
 
     def suite_execution(self):
@@ -941,6 +957,7 @@ class Start_Execution(Actions):
                 str(datetime.now())+'_'+self.browser
             res_filename = res_filename.replace(":", "-")
             test_results_path = self._paths['test_results_path'] + res_filename
+            # test suite execution
             for suite in test_suites:
                 test_suite_result = {
                     "Suite": suite['Suite Name'], "Result": '',
@@ -959,45 +976,37 @@ class Start_Execution(Actions):
                             test_script_result = self.start_execution(
                                 test_script)
                             endTime = time.time()
-                            test_script_result['duration(sec)'] = endTime - \
-                                startTime
+                            test_script_result['Duration(sec)'] = \
+                                round(endTime - startTime, 2)
                             test_scripts_result.append(test_script_result)
-                            if(test_script_result['result'].lower() == "Fail"):
+                            if(test_script_result['Result'].lower() == "Fail"):
                                 suite_res_flag = 1
-
                         else:
-                            script['result'] = "Skip"
-                            script['duration(sec)'] = 0
+                            script['Result'] = "Skip"
+                            script['Duration(sec)'] = 0
                             test_scripts_result.append(script)
                     suite_end_time = time.time()
                     if(suite_res_flag == 1):
-                        test_suite_result['result'] = 'Pass'
+                        test_suite_result['Result'] = 'Pass'
                     else:
-                        test_suite_result['result'] = 'Fail'
-                    test_suite_result['duration(sec)'] = suite_end_time - \
-                        suite_start_time
-                    test_suite_result['Test Scripts Result'].append(
-                        test_scripts_result)
+                        test_suite_result['Result'] = 'Fail'
+                    test_suite_result['Duration(sec)'] = \
+                        round(suite_end_time - suite_start_time, 2)
+                    test_suite_result['Test Scripts Result'] = \
+                        test_scripts_result
                     test_suites_result.append(test_suite_result)
 
                 else:
-                    test_suite_result['result'] = "Skip"
-                    test_suite_result['duration(sec)'] = 0
+                    test_suite_result['Result'] = "Skip"
+                    test_suite_result['Duration(sec)'] = 0
                     test_suites_result.append(test_suite_result)
-            #         # test results file name
-            # res_filename = r'\suite_results_' + \
-            #     str(datetime.now())+'_'+self.browser
-            # res_filename = res_filename.replace(":", "-")
-            # test_results_path = self._paths['test_results_path'] + res_filename
-            # write test results to yaml file
-            # self.write_test_script_result(
-            #     test_results_path, test_suites_result)
         except Exception as e:
             logging.error(e)
             print("Exception occured in test suite execution ", e)
         finally:
             self.write_test_script_result(
                 test_results_path, test_suites_result)
+            logging.info("[INFO] : Suite Execution Completed, Check Results")
 
 
 if __name__ == "__main__":
