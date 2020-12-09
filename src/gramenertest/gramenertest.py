@@ -7,6 +7,7 @@ import json
 from os.path import dirname
 from json2html import json2html
 import logging
+import sys
 import pyodbc
 from threading import Thread
 from selenium import webdriver
@@ -21,15 +22,16 @@ from selenium.common.exceptions import ElementClickInterceptedException
 
 
 # log configuration
-logging.basicConfig(filename='debug.log',
-                    level=logging.DEBUG, format='%(asctime)s %(message)s')
-
+# logging.basicConfig(filename='debug.log',
+#                     level=logging.DEBUG, format='%(asctime)s %(message)s')
+logging.basicConfig(stream=sys.stderr, level=logging.INFO,
+                    format='%(asctime)s %(message)s')
 # read config file
 
 
 def read_yaml(config_file_path):
     yaml_contents = yaml.load(
-        open(config_file_path), Loader=yaml.FullLoader)
+        open(config_file_path, encoding="utf8"), Loader=yaml.FullLoader)
     return yaml_contents
 
 
@@ -83,7 +85,7 @@ class Database:
                 temp_row_val = []
                 for j in range(0, len(row)):
                     temp_row_val.append("".join(row[j]))
-            auto_dictionary[res_var] = temp_row_val
+                auto_dictionary[res_var] = temp_row_val
             result = "pass"
             result_description = "Select query successful"
         except Exception as e:
@@ -111,20 +113,27 @@ class Actions:
         Returns:
             object: driver
         """
+        global browser_mode
         dir_path = dirname(dirname(os.getcwd()))
         chromedriver_path = dir_path+r'\\drivers\\chromedriver.exe'
         geckodriver_path = dir_path+r'\drivers\geckodriver.exe'
+
         try:
             if browser.lower() == 'chrome':
                 options = webdriver.ChromeOptions()
                 options.add_argument("start-maximized")
                 options.add_argument("disable-infobars")
                 options.add_argument("--disable-extensions")
+                if browser_mode == 'headless':
+                    logging.info("[INFO] : Launching Browser in headless mode")
+                    options.add_argument("--headless")
                 driver = webdriver.Chrome(options=options,
                                           executable_path=chromedriver_path)
             elif browser.lower() == 'firefox':
                 options = webdriver.FirefoxOptions()
                 options.add_argument("start-maximized")
+                if browser_mode == 'headless':
+                    options.add_argument("--headless")
                 driver = webdriver.Firefox(options=options,
                                            executable_path=geckodriver_path)
                 # TODO
@@ -135,7 +144,7 @@ class Actions:
                 pass
                 # TODO
             driver.delete_all_cookies()
-            logging.info("Browser launched : ")
+            logging.info("Browser launched : "+browser)
             return driver
         except Exception as e:
             logging.error(e)
@@ -224,7 +233,7 @@ class Actions:
                       (test_data, temp_text))
                 result = "fail"
                 result_description = "text verification failed," + \
-                    test_data+"expected but"+temp_text+"is actual"
+                    test_data+"expected but "+temp_text+" is actual"
         except Exception as e:
             logging.error(e)
             print("Exception in text", e)
@@ -597,7 +606,7 @@ class Start_Execution(Actions):
         Returns:
             obj: contents of the yaml file
         """
-        content = yaml.load(open(file_path),
+        content = yaml.load(open(file_path, encoding="utf8"),
                             Loader=yaml.FullLoader)
         return content
 
@@ -624,7 +633,8 @@ class Start_Execution(Actions):
             str: test script name
             str: test steps
         """
-        actions = yaml.load(open(test_script_path), Loader=yaml.FullLoader)
+        actions = yaml.load(
+            open(test_script_path, encoding="utf8"), Loader=yaml.FullLoader)
         name = actions['name']
         steps = actions['steps']
         return name, steps
@@ -856,9 +866,14 @@ class Start_Execution(Actions):
             It is based on the execution mode.
         """
         try:
+            logging.info(
+                "[INFO] : Executing all the scripts \
+                available in scripts folder")
             # collect Test Scripts
             test_scripts = self.collect_test_scripts(
                 self._paths['test_scripts_path'])
+            logging.info("[INFO] : Total " +
+                         str(len(test_scripts))+" scripts to execute")
             test_scripts_result = []
             # test results file name
             res_filename = r'\results_' + \
@@ -870,17 +885,17 @@ class Start_Execution(Actions):
                 # Test Script results
                 test_script_result = self.start_execution(test_script)
                 endTime = time.time()
-                test_script_result['duration(sec)'] = endTime - startTime
+                test_script_result['Duration(sec)'] = round(
+                    (endTime - startTime), 2)
                 test_scripts_result.append(test_script_result)
-            # write test results to yaml file
-            # self.write_test_script_result(
-            #     test_results_path, test_scripts_result)
         except Exception as e:
             logging.error(e)
             print("Exception occured in Scripts execution ", e)
         finally:
+            # write test results to yaml file
             self.write_test_script_result(
                 test_results_path, test_scripts_result)
+            logging.info("[INFO] : Scripts Execution Completed, Check Results")
     # Start Execution
 
     def start_execution(self, _script):
@@ -901,31 +916,47 @@ class Start_Execution(Actions):
                 test_script_filepath)
             test_data_dump = self.read_yaml(test_data_filepath)
             test_script_result = {
-                "Test Script": test_script_name, "Test_Steps_Result": []}
+                "Test Script": test_script_name,
+                "Result": "",
+                "Duration(sec)": "",
+                "Test_Steps_Result": []
+            }
+            logging.info("[INFO] : Executing Script "+_script)
             for testdata in test_data_dump:
                 driver = self.launch_browser(self.browser)
                 # Loop through steps
                 test_steps_result = []
                 res_flag = 0
                 for test_step in test_steps:
+                    logging.info("[INFO] : Executing Step: "+test_step)
                     step_startTime = time.time()
                     split_step = test_step.split(" ")
                     action = split_step[0]
                     if split_step[1] != 'NA':
-                        test_element = self.get_object_property(
-                            split_step[1])
-                        _element = self.get_test_element(driver, test_element)
+                        try:
+                            test_element = self.get_object_property(
+                                split_step[1])
+                            _element = self.get_test_element(
+                                driver, test_element)
+                        except Exception as e:
+                            logging.error(e)
+                            logging.info("[ERROR] : "+str(e))
+                            print("Exception in object "+split_step[1])
                     else:
                         _element = 'NA'
                     if split_step[2] != 'NA':
-                        test_data = self.get_test_data(
-                            testdata, split_step[2])
+                        try:
+                            test_data = self.get_test_data(
+                                testdata, split_step[2])
+                        except Exception as e:
+                            logging.error(e)
+                            logging.info("[ERROR] : "+str(e))
+                            print("Exception in test data "+split_step[2])
                     else:
                         test_data = 'NA'
-                    test_step_result, test_step_result_desc = self.execute_test_step(
-                        driver, action, _element, test_data)
-                    # print(test_step_result)
-                    # print(test_step_result_desc)
+                    test_step_result, test_step_result_desc = \
+                        self.execute_test_step(
+                            driver, action, _element, test_data)
                     step_endTime = time.time()
                     if(test_step_result.lower() == "fail"):
                         res_flag = 1
@@ -933,22 +964,22 @@ class Start_Execution(Actions):
                         "Test Step": test_step,
                         "Test Step Result": test_step_result,
                         "Test Result Description": test_step_result_desc,
-                        "duration(sec)": step_endTime - step_startTime}
+                        "duration(sec)":
+                        round((step_endTime - step_startTime), 2)}
                     test_steps_result.append(temp_result)
-                # test_script_result['Test_Steps_Result'].append(
-                #     test_steps_result)
                 if res_flag == 1:
-                    test_script_result['result'] = "Fail"
+                    test_script_result["Result"] = "Fail"
                 else:
-                    test_script_result['result'] = 'Pass'
-            # return test_script_result
+                    test_script_result["Result"] = 'Pass'
         except Exception as e:
             logging.error(e)
+            test_script_result["Result"] = "Fail"
             print("Exception occurred in start execution ", e)
         finally:
             driver.quit()
             test_script_result['Test_Steps_Result'].append(
                 test_steps_result)
+            # test_script_result['Test_Steps_Result'] = test_steps_result
             return test_script_result
 
     def suite_execution(self):
@@ -963,6 +994,7 @@ class Start_Execution(Actions):
                 str(datetime.now())+'_'+self.browser
             res_filename = res_filename.replace(":", "-")
             test_results_path = self._paths['test_results_path'] + res_filename
+            # test suite execution
             for suite in test_suites:
                 test_suite_result = {
                     "Suite": suite['Suite Name'], "Result": '',
@@ -981,45 +1013,37 @@ class Start_Execution(Actions):
                             test_script_result = self.start_execution(
                                 test_script)
                             endTime = time.time()
-                            test_script_result['duration(sec)'] = endTime - \
-                                startTime
+                            test_script_result['Duration(sec)'] = \
+                                round(endTime - startTime, 2)
                             test_scripts_result.append(test_script_result)
-                            if(test_script_result['result'].lower() == "Fail"):
+                            if(test_script_result['Result'].lower() == "Fail"):
                                 suite_res_flag = 1
-
                         else:
-                            script['result'] = "Skip"
-                            script['duration(sec)'] = 0
+                            script['Result'] = "Skip"
+                            script['Duration(sec)'] = 0
                             test_scripts_result.append(script)
                     suite_end_time = time.time()
                     if(suite_res_flag == 1):
-                        test_suite_result['result'] = 'Pass'
+                        test_suite_result['Result'] = 'Pass'
                     else:
-                        test_suite_result['result'] = 'Fail'
-                    test_suite_result['duration(sec)'] = suite_end_time - \
-                        suite_start_time
-                    test_suite_result['Test Scripts Result'].append(
-                        test_scripts_result)
+                        test_suite_result['Result'] = 'Fail'
+                    test_suite_result['Duration(sec)'] = \
+                        round(suite_end_time - suite_start_time, 2)
+                    test_suite_result['Test Scripts Result'] = \
+                        test_scripts_result
                     test_suites_result.append(test_suite_result)
 
                 else:
-                    test_suite_result['result'] = "Skip"
-                    test_suite_result['duration(sec)'] = 0
+                    test_suite_result['Result'] = "Skip"
+                    test_suite_result['Duration(sec)'] = 0
                     test_suites_result.append(test_suite_result)
-            #         # test results file name
-            # res_filename = r'\suite_results_' + \
-            #     str(datetime.now())+'_'+self.browser
-            # res_filename = res_filename.replace(":", "-")
-            # test_results_path = self._paths['test_results_path'] + res_filename
-            # write test results to yaml file
-            # self.write_test_script_result(
-            #     test_results_path, test_suites_result)
         except Exception as e:
             logging.error(e)
             print("Exception occured in test suite execution ", e)
         finally:
             self.write_test_script_result(
                 test_results_path, test_suites_result)
+            logging.info("[INFO] : Suite Execution Completed, Check Results")
 
 
 if __name__ == "__main__":
@@ -1043,7 +1067,8 @@ if __name__ == "__main__":
     exec_params = read_yaml(config_file_path)
 
     # Browsers
-    browser = exec_params['browser']
+    browser = exec_params['browser_details']['browser']
+    browser_mode = exec_params['browser_details']['mode']
 
     # loader class
     loader = exec_params['loader_class']
@@ -1074,7 +1099,8 @@ if __name__ == "__main__":
 
     # Initiate Execution
     def initiate_execution(folder_paths, browser, db_credentials):
-        execution = Start_Execution(folder_paths, browser, db_credentials)
+        execution = Start_Execution(
+            folder_paths, browser, db_credentials)
         try:
             if execution_mode == 1:
                 execution.scripts_execution()
