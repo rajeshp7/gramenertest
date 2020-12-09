@@ -1,13 +1,15 @@
 # """
 # execution_mode(mandatory) :
-#   1 - will tell the script to execute all the test scripts(.yaml) files available under test scripts folder.
+#   1 - will guide the script to execute all the test scripts(.yaml) files available under test scripts folder.
 #   2 - test scripts execution is based on the test suite defined. Controlled execution where you can define what to execute and what not to.
 
+#browser_details(mandatory):
 # browser(mandatory):
 #   browser name(eg. chrome) : launch specific browser to execute the test cases.
-#   browsers list([chrome, firefox]) : launch all browsers mentioned in the list parallelly to execute the test cases
+#   browsers list([chrome, firefox]) : launch all browsers mentioned in the list parllely to execute the test cases
+#   mode(mandatory): 'headless' to launch the browser in headless mode, '#headless' to launch the browser in head mode.
 
-# loader_class(optional): If the loader class name is specified, the script will wait till the page loading is completed. If not specified, explicit waits should be added to the test script.
+# loader_class(optional): If the loader class name is specified, script will wait till the page loading is completed. If not specified, explicit waits should be added to the test script.
 
 # db_details(optional): Database server and credentials to execute queries.
 
@@ -15,9 +17,10 @@
 # """
 
 execution_mode: 1
-# browser: [chrome, firefox]
-browser: chrome
 loader_class: loading
+browser_details:
+  browser: chrome
+  mode: #headless
 db_details:
   database: mssql
   db_server: XXXXXX
