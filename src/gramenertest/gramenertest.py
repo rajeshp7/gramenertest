@@ -124,6 +124,17 @@ class Actions:
                 options.add_argument("start-maximized")
                 options.add_argument("disable-infobars")
                 options.add_argument("--disable-extensions")
+                options.add_argument("--disable-popup-blocking")
+                options.add_argument("--profile-directory=Default")
+                options.add_argument("--ignore-certificate-errors")
+                options.add_argument("--disable-plugins-discovery")
+                options.add_argument("--incognito")
+                options.add_argument("--disable-web-security")
+                options.add_argument("--allow-running-insecure-content")
+                options.add_argument("user_agent=DN")
+                options.add_argument("--disable-gpu")
+                options.add_experimental_option(
+                    'excludeSwitches', ['enable-logging'])
                 if browser_mode == 'headless':
                     logging.info("[INFO] : Launching Browser in headless mode")
                     options.add_argument("--headless")
@@ -149,6 +160,29 @@ class Actions:
         except Exception as e:
             logging.error(e)
             print("Exception launch browser: ", e)
+
+    def switch_window(self, driver):
+        """Function to switch to the tab in the browser
+
+        Args:
+            driver (Object): webdriver object
+            test_data(str): Tab number to switch to
+        """
+        try:
+            current_window = driver.current_window_handle
+            child_windows = driver.window_handles
+            for window in child_windows:
+                if(window != current_window):
+                    driver.switch_to.window(window)
+                    break
+            result = "pass"
+            result_description = "Switch to window action successful"
+        except Exception as e:
+            print('Exception occured while input: ', e)
+            result = "fail"
+            result_description = "Switch to window action failed due to an exception " + \
+                str(e)
+        return result, result_description
 
     def input_value(self, _element, test_data):
         """Function to input a value in a text field
@@ -229,11 +263,11 @@ class Actions:
                 result = "pass"
                 result_description = "text verification successful"
             else:
-                print("comparision failed, expected %s and actual %s" %
+                print("comparison failed, expected %s and actual %s" %
                       (test_data, temp_text))
                 result = "fail"
                 result_description = "text verification failed," + \
-                    test_data+"expected but "+temp_text+" is actual"
+                    test_data+" expected but "+temp_text+" is actual"
         except Exception as e:
             logging.error(e)
             print("Exception in text", e)
@@ -265,10 +299,10 @@ class Actions:
                 result_description = "verification successful"
             else:
                 print("comparision failed, expected %s and actual %s" %
-                        (temp_value, attr))
+                      (temp_value, attr))
                 result = "fail"
                 result_description = "verification failed," + \
-                    temp_value+"expected but"+attr+"is actual"
+                    temp_value+" expected but "+attr+" is actual"
         except Exception as e:
             logging.error(e)
             print("Exception in verification", e)
@@ -460,6 +494,25 @@ class Actions:
                 str(e)
         return result, result_description
 
+    def switch_to_frame(self, driver, _element):
+        """Swith to frame
+
+        Args:
+            driver (object): webdriver
+            _element (webelement): Web element
+
+        Returns:
+            str: action result and description
+        """
+        try:
+            driver.switch_to.frame(_element)
+            result = "pass"
+            result_description = "Switch to frame successfully"
+        except Exception as e:
+            result = "fail"
+            result_description = "Switch to frame failed due to "+str(e)
+        return result, result_description
+
     def color(self, _element, test_data):
         """Verify the color code of the element
 
@@ -526,6 +579,17 @@ class Actions:
         except Exception as e:
             result = "fail"
             result_description = "alert close failed due to "+str(e)
+        return result, result_description
+
+    def scroll_page(self, driver):
+        try:
+            driver.execute_script(
+                "window.scrollBy(0,document.body.scrollHeight)")
+            result = "pass"
+            result_description = "Scroll action successful"
+        except Exception as e:
+            result = "fail"
+            result_description = "scroll action failed due to "+str(e)
         return result, result_description
 
     def script(self, driver, test_data):
@@ -731,7 +795,8 @@ class Start_Execution(Actions):
         global loader
         try:
             test_element = test_element.strip('\'')
-            driver_wait = WebDriverWait(driver, 100, poll_frequency=1,
+            # driver.implicitly_wait(3)
+            driver_wait = WebDriverWait(driver, 100, poll_frequency=10,
                                         ignored_exceptions=[
                                             ElementNotVisibleException,
                                             ElementNotSelectableException,
@@ -758,6 +823,14 @@ class Start_Execution(Actions):
                 element = driver_wait.until(
                     expCond.presence_of_element_located
                     ((By.TAG_NAME, test_element[1])))
+            elif test_element.startswith('>'):
+                test_element = test_element.lstrip('>')
+                element = driver_wait.until(
+                    expCond.presence_of_element_located((By.CSS_SELECTOR, test_element)))
+            elif test_element.startswith('>'):
+                test_element = test_element.lstrip('>')
+                element = driver_wait.until(
+                    expCond.presence_of_element_located((By.CSS_SELECTOR, test_element)))
             else:
                 element = driver_wait.until(
                     expCond.presence_of_element_located
@@ -808,6 +881,9 @@ class Start_Execution(Actions):
             if action == "launch":
                 action_result, res_desc = self.open_application(
                     driver, test_data)
+            elif action == "switchwindow":
+                action_result, res_desc = self.switch_window(
+                    driver)
             elif action == "input":
                 action_result, res_desc = self.input_value(
                     test_element, test_data)
@@ -818,7 +894,8 @@ class Start_Execution(Actions):
             elif action == "text":
                 action_result, res_desc = self.text(test_element, test_data)
             elif action == "attribute":
-                action_result, res_desc = self.attribute(test_element, test_data)
+                action_result, res_desc = self.attribute(
+                    test_element, test_data)
             elif action == "close":
                 action_result, res_desc = self.close(driver)
             elif action == "selectquery":
@@ -840,10 +917,14 @@ class Start_Execution(Actions):
                                                      test_element)
             elif action == "color":
                 action_result, res_desc = self.color(test_element, test_data)
+            elif action == "scrollpage":
+                action_result, res_desc = self.scroll_page(driver)
             elif action == "alerttext":
                 action_result, res_desc = self.alert_text(driver, test_data)
             elif action == "alertclose":
                 action_result, res_desc = self.alert_close(driver)
+            elif action == "switchtoframe":
+                action_result, res_desc = self.switch_to_frame(test_element)
             elif action == "script":
                 action_result, res_desc = self.script(driver, test_data)
             elif action == "comparelist":
@@ -868,7 +949,7 @@ class Start_Execution(Actions):
         try:
             logging.info(
                 "[INFO] : Executing all the scripts \
-                available in scripts folder")
+                available in the scripts folder")
             # collect Test Scripts
             test_scripts = self.collect_test_scripts(
                 self._paths['test_scripts_path'])
@@ -895,7 +976,8 @@ class Start_Execution(Actions):
             # write test results to yaml file
             self.write_test_script_result(
                 test_results_path, test_scripts_result)
-            logging.info("[INFO] : Scripts Execution Completed, Check Results")
+            logging.info(
+                "[INFO] : Scripts Execution Completed, Check The Results")
     # Start Execution
 
     def start_execution(self, _script):
