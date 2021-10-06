@@ -226,6 +226,40 @@ class Actions:
                 str(e)
         return result, result_description
 
+    def back(self, driver):
+        """Function to click on Browser Back
+
+        Returns:
+            str: displays previous page
+        """
+        try:
+            driver.back()
+            result = "pass"
+            result_description = "Navigated to previous page sucessfully"
+        except Exception as e:
+            logging.error(e)
+            result = "fail"
+            result_description = "Back navigation failed due to an exception " + \
+                str(e)
+        return result, result_description    
+
+    def forward(self, driver):
+        """Function to click on Browser Forward
+
+        Returns:
+            str: displays next page
+        """
+        try:
+            driver.forward()
+            result = "pass"
+            result_description = "Navigated to next page sucessfully"
+        except Exception as e:
+            logging.error(e)
+            result = "fail"
+            result_description = "Forward navigation failed due to an exception " + \
+                str(e)
+        return result, result_description    
+
     def wait(self, test_data):
         """Function to wait for a period of time
 
@@ -889,6 +923,10 @@ class Start_Execution(Actions):
                     test_element, test_data)
             elif action == "click":
                 action_result, res_desc = self.click(driver, test_element)
+            elif action == "back":
+                action_result, res_desc = self.back(driver)
+            elif action == "forward":
+                action_result, res_desc = self.forward(driver)
             elif action == "wait":
                 action_result, res_desc = self.wait(test_data)
             elif action == "text":
